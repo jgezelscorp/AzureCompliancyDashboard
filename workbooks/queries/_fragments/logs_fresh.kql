@@ -9,5 +9,5 @@ let dedupedChecks = MachineConfigChecks_CL
 let logsFreshChecks = latestReport
     | where ReportEndTime >= latestSnapshot - 24h
     | join kind=inner dedupedChecks on ReportId
-    | extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)
+    | extend Category = iff(isnotempty(CheckCategory), CheckCategory, __CATEGORY_CASE(CheckName)__)
     | project MachineId, Family, ReportId, ReportEndTime, CheckKey, CheckName, CheckStatus, Category;

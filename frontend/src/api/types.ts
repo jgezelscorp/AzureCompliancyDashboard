@@ -122,12 +122,16 @@ export interface ScopesResponse {
   scope: ScopeInfo;
 }
 
+export type CategorySource = "source" | "derived" | "override" | "unmapped" | "mixed";
+
 export interface CategoryRow {
   category: string;
   checks: number;
   passed: number;
   total: number;
   percent: number | null;
+  categorySource?: CategorySource;
+  categoryRuleVersion?: number | null;
 }
 
 export interface CheckRow {
@@ -137,6 +141,8 @@ export interface CheckRow {
   benchmarkControlId: string | null;
   machinesPassed: number;
   machinesFailed: number;
+  categorySource?: CategorySource;
+  categoryRuleVersion?: number | null;
 }
 
 export interface CheckMachineRow {

@@ -155,7 +155,9 @@ def report_and_check_rows(
                     "CheckKey": _text(c.check_key),
                     "CheckName": _text(c.name),
                     "ComplianceStatus": c.compliance_status,
-                    "Category": _text(c.category),
+                    "Category": _text(
+                        c.category if c.category_source in (None, "source") else None
+                    ),
                     "Severity": c.severity,
                     "BenchmarkControlId": _text(c.benchmark_control_id),
                     "ReportEndTime": _iso(report.end_time),

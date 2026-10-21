@@ -1,2 +1,6 @@
 //#include checkrows
 | where quality == 'Fresh' and isnotempty(checkKey)
+| extend sourceCategory = extract(@'^\[([^\]]+)\]', 1, checkKey)
+| extend derivedCategory = __CATEGORY_CASE(checkKey)__
+| extend category = coalesce(sourceCategory, derivedCategory)
+| extend categorySource = iff(isnotempty(sourceCategory), 'source', iff(derivedCategory == 'Uncategorized', 'unmapped', 'derived'))

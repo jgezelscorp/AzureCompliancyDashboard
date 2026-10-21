@@ -5,4 +5,3 @@
 | extend status = iff(tolower(tostring(r.complianceStatus)) in ('true', 'compliant'), 'Compliant', 'NonCompliant')
 | extend reasonCount = coalesce(array_length(r.reasons), 0)
 | summarize checkStatus = iff(countif(status == 'NonCompliant') > 0, 'NonCompliant', 'Compliant'), reasonCount = sum(reasonCount) by machineId, machineName, family, eligibility, quality, green, checkKey
-| extend category = coalesce(extract(@'^\[([^\]]+)\]', 1, checkKey), 'Uncategorized')

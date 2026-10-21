@@ -13,6 +13,12 @@ from app.db_history import (
     MetricSnapshotRow,
     PolicyStateRow,
 )
+from app.domain.categories import (
+    configured_overrides,
+    derive_category,
+    resolve_category,
+    rules_version,
+)
 from app.models import Assignment, Machine, PolicyState, Report
 
 
@@ -69,6 +75,7 @@ def upsert_assignments(session: Session, assignments: Iterable[Assignment], run_
 
 def _add_checks(session: Session, report: Report) -> None:
     for c in report.checks:
+        resolved = resolve_category(c.name, c.check_key, c.category, configured_overrides())
         session.add(
             CheckRow(
                 report_id=report.report_id,
@@ -76,11 +83,38 @@ def _add_checks(session: Session, report: Report) -> None:
                 name=c.name,
                 compliance_status=c.compliance_status,
                 category=c.category,
+                derived_category=derive_category(c.name),
+                category_source=resolved.source,
+                category_rule_version=resolved.rule_version,
                 severity=c.severity,
                 benchmark_control_id=c.benchmark_control_id,
                 reasons=[x.model_dump() for x in c.reasons],
             )
         )
+
+
+def recategorize_checks(session: Session) -> int:
+    """Recompute derived category columns for rows stamped with an older rule version.
+
+    Only app-derived columns change; the raw source category and the evidence are untouched.
+    Overrides and the rule file are applied at read time as well, so reads are always current.
+    """
+    version = rules_version()
+    overrides = configured_overrides()
+    rows = session.scalars(
+        select(CheckRow).where(
+            or_(
+                CheckRow.category_rule_version.is_(None),
+                CheckRow.category_rule_version != version,
+            )
+        )
+    ).all()
+    for row in rows:
+        resolved = resolve_category(row.name, row.check_key, row.category, overrides)
+        row.derived_category = derive_category(row.name)
+        row.category_source = resolved.source
+        row.category_rule_version = resolved.rule_version
+    return len(rows)
 
 
 def insert_reports(session: Session, reports: Iterable[Report], run_id: int) -> int:

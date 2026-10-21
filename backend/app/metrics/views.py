@@ -61,12 +61,16 @@ def categories(
 ) -> list[dict[str, Any]]:
     acc: dict[str, list[int]] = {}
     keys: dict[str, set[str]] = {}
+    sources: dict[str, set[str]] = {}
+    version: int | None = None
     for _, c in _fresh_checks(bundle, family, at, stale_after):
         cat = c.category or UNCATEGORIZED
         a = acc.setdefault(cat, [0, 0])
         a[0] += c.compliance_status == "Compliant"
         a[1] += 1
         keys.setdefault(cat, set()).add(c.check_key)
+        sources.setdefault(cat, set()).add(c.category_source or "source")
+        version = c.category_rule_version or version
     return [
         {
             "category": cat,
@@ -74,6 +78,8 @@ def categories(
             "passed": p,
             "total": t,
             "percent": _ratio(p, t),
+            "categorySource": next(iter(sources[cat])) if len(sources[cat]) == 1 else "mixed",
+            "categoryRuleVersion": version,
         }
         for cat, (p, t) in sorted(acc.items())
     ]
@@ -93,6 +99,8 @@ def checks(
                 "name": c.name,
                 "severity": c.severity,
                 "benchmarkControlId": c.benchmark_control_id,
+                "categorySource": c.category_source or "source",
+                "categoryRuleVersion": c.category_rule_version,
                 "machinesPassed": 0,
                 "machinesFailed": 0,
             },

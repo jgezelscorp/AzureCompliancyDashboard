@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.exports import purge_expired
 from app.azure.client import ArmClient, AzureIdentityTokenProvider, HttpxTransport
+from app.collectors.persist import recategorize_checks
 from app.collectors.runner import CollectionRunner
 from app.collectors.scheduler import CollectionScheduler
 from app.config import get_settings
@@ -46,6 +47,10 @@ def main() -> None:
     factory: sessionmaker[Session] = sessionmaker(get_engine(settings.database_url))
     with factory() as session:
         seed_configured_scopes(session, settings.subscription_ids)
+    with factory() as session, session.begin():
+        updated = recategorize_checks(session)
+    if updated:
+        log.info("recategorized stored checks", extra={"count": updated})
     client = ArmClient(
         HttpxTransport(),
         AzureIdentityTokenProvider(),

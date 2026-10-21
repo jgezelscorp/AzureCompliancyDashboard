@@ -142,6 +142,9 @@ def _csv_checks(
                     c["benchmarkControlId"],
                     c["machinesFailed"],
                     c["machinesPassed"],
+                    f"{c['categorySource']} (app rules v{c['categoryRuleVersion']})"
+                    if c["categorySource"] == "derived"
+                    else c["categorySource"],
                 ]
             )
     return rows
@@ -288,6 +291,7 @@ def create_export(
                 "ControlId",
                 "MachinesFailing",
                 "MachinesPassing",
+                "CategorySource",
             ]
             data_rows = _csv_checks(bundle, req, at, stale_after)
         else:

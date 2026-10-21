@@ -286,3 +286,46 @@ def test_thirteen_month_retention_purges_old_history() -> None:
         assert s.scalar(select(func.count()).select_from(MetricSnapshotRow)) == 2
         # the old report is outside the window and gone; the late-arriving copy is not re-added
         assert s.scalar(select(func.count()).select_from(ReportRow)) == 0
+
+
+def test_categories_are_stored_recomputed_and_one_per_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.collectors.persist import recategorize_checks
+    from app.domain.categories import parse_overrides, rules_version
+    from app.metrics import store, views
+
+    bundle = load_fixture("arc-azurewindowsbaseline-373.json")
+    runner, _, factory = make_runner(bundle)
+    runner.run_once()
+    with factory() as s, s.begin():
+        rows = s.scalars(select(CheckRow)).all()
+        assert {r.category_rule_version for r in rows} == {rules_version()}
+        assert {r.category_source for r in rows} <= {"source", "derived", "unmapped"}
+        raw = {r.id: r.category for r in rows}
+        for r in rows:
+            r.category_rule_version = 0
+            r.derived_category = None
+        assert recategorize_checks(s) == len(rows)
+    with factory() as s:
+        again = s.scalars(select(CheckRow)).all()
+        assert {r.category_rule_version for r in again} == {rules_version()}
+        assert {r.id: r.category for r in again} == raw  # raw source evidence is untouched
+        assert recategorize_checks(s) == 0
+        at = snap_ts(bundle)
+        cats = views.categories(
+            store.load_bundle(s, at), "AzureWindowsBaseline", at, timedelta(hours=24)
+        )
+        assert sum(c["checks"] for c in cats) == 373  # one category per check, no double count
+        assert all(c["categorySource"] for c in cats)
+        monkeypatch.setattr(
+            store,
+            "configured_overrides",
+            lambda: parse_overrides('[{"type":"regex","pattern":".*","category":"Pinned"}]'),
+        )
+        pinned = views.categories(
+            store.load_bundle(s, at), "AzureWindowsBaseline", at, timedelta(hours=24)
+        )
+        assert [(c["category"], c["categorySource"], c["checks"]) for c in pinned] == [
+            ("Pinned", "override", 373)
+        ]

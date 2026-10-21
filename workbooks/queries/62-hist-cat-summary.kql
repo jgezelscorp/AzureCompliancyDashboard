@@ -6,7 +6,7 @@
 // @export category=Category
 // @note Uses the latest stored report per machine and family whose end time is within 24 hours of the latest stored collection snapshot. Older reports are excluded and not counted as passing.
 // @note Only reports delivered to Log Analytics are visible. Reports stored by the app before the sink was enabled are absent, so a machine can look stale or missing here even though the app has data.
-// @note Counts are unique (machine, check) pairs after de-duplicating retried deliveries on (ReportId, CheckKey). Category comes from the source check identifier prefix; no control mapping is claimed.
+// @note Counts are unique (machine, check) pairs after de-duplicating retried deliveries on (ReportId, CheckKey). Category is the source category when stored, otherwise the app-derived heuristic grouping from the check name (app rules v__RULES_VERSION__; not a benchmark mapping). App-side overrides are not applied here.
 // @nodata No fresh stored checks in Log Analytics for the selected time range.
 //#include logs_fresh
 logsFreshChecks

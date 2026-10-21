@@ -8,12 +8,29 @@ from sqlalchemy.orm import Session
 
 from app.db import AssignmentRow, CheckRow, MachineRow, ReportRow
 from app.db_history import MachineStatusSnapshotRow, MetricSnapshotRow, PolicyStateRow
+from app.domain.categories import Override, configured_overrides, resolve_category
 from app.metrics.engine import FAMILIES, STALE_AFTER, compute, unclassified_policy_states
 from app.models import EvidenceBundle
 
 
 def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def _check_dict(c: CheckRow, overrides: tuple[Override, ...]) -> dict[str, Any]:
+    # Effective category is resolved at read time so it is current even if stored columns lag.
+    resolved = resolve_category(c.name, c.check_key, c.category, overrides)
+    return {
+        "checkKey": c.check_key,
+        "name": c.name,
+        "complianceStatus": c.compliance_status,
+        "category": resolved.category,
+        "categorySource": resolved.source,
+        "categoryRuleVersion": resolved.rule_version,
+        "severity": c.severity,
+        "benchmarkControlId": c.benchmark_control_id,
+        "reasons": c.reasons or [],
+    }
 
 
 def load_bundle(
@@ -60,6 +77,7 @@ def load_bundle(
         if r.machine_id in ids:
             latest.setdefault((r.machine_id, r.baseline_family), r)
     checks_by_report: dict[str, list[CheckRow]] = {}
+    overrides = configured_overrides()
     if latest:
         wanted = {r.report_id for r in latest.values()}
         for c in session.scalars(select(CheckRow).where(CheckRow.report_id.in_(wanted))):
@@ -105,15 +123,7 @@ def load_bundle(
                     "startTime": _utc(r.start_time),
                     "endTime": _utc(r.end_time),
                     "checks": [
-                        {
-                            "checkKey": c.check_key,
-                            "name": c.name,
-                            "complianceStatus": c.compliance_status,
-                            "category": c.category,
-                            "severity": c.severity,
-                            "benchmarkControlId": c.benchmark_control_id,
-                            "reasons": c.reasons or [],
-                        }
+                        _check_dict(c, overrides)
                         for c in checks_by_report.get(r.report_id, [])
                     ],
                 }

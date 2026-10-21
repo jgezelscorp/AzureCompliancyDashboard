@@ -3,12 +3,12 @@
 // @title Category drill-down (select a row to filter the checks below)
 // @export family=Family
 // @export category=Category
-// @note Category is extracted from a leading [Category] prefix of the check resourceId. Checks without that prefix are 'Uncategorized'; no category or benchmark control is invented.
+// @note Category is the source category when the report provides one (a leading [Category] prefix), otherwise an app-derived heuristic grouping from the check name (app rules v__RULES_VERSION__, public Microsoft baseline layout; not a benchmark mapping). categorySources shows the provenance: source, derived or unmapped. Unmatched checks stay 'Uncategorized'.
 // @note Counts are unique (machine, check) pairs from Fresh reports only. failedChecks and machinesAffected are different grains: one failing check on N machines adds N to failedChecks.
 // @note benchmarkControlId is not available from ARG; no CIS control mapping is claimed.
 // @nodata No Fresh reports with checks in scope.
 //#include freshchecks
 | where '{Family}' == '*' or family == '{Family}'
-| summarize totalChecks = count(), failedChecks = countif(checkStatus == 'NonCompliant'), distinctChecks = dcount(checkKey), machinesAffected = dcountif(machineId, checkStatus == 'NonCompliant') by family, category
+| summarize totalChecks = count(), failedChecks = countif(checkStatus == 'NonCompliant'), distinctChecks = dcount(checkKey), machinesAffected = dcountif(machineId, checkStatus == 'NonCompliant'), categorySources = strcat_array(make_set(categorySource), ', ') by family, category
 | extend failedPercent = iff(totalChecks == 0, real(null), round(100.0 * failedChecks / totalChecks, 2))
 | order by failedChecks desc

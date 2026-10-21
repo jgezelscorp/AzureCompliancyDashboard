@@ -6,8 +6,8 @@
 // @note Use it to see where failures concentrate over time. Use the fleet-wide category summary for the current estate and the stored snapshots for the metric trend.
 // @nodata No stored checks in Log Analytics for the selected time range.
 MachineConfigChecks_CL
-| summarize CheckStatus = take_any(ComplianceStatus), CheckCategory = take_any(Category), ReportEndTime = take_any(ReportEndTime), Family = take_any(Family) by ReportId, CheckKey
-| extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)
+| summarize CheckStatus = take_any(ComplianceStatus), CheckCategory = take_any(Category), CheckName = take_any(CheckName), ReportEndTime = take_any(ReportEndTime), Family = take_any(Family) by ReportId, CheckKey
+| extend Category = iff(isnotempty(CheckCategory), CheckCategory, __CATEGORY_CASE(CheckName)__)
 | summarize storedChecks = count(), failedChecks = countif(CheckStatus == 'NonCompliant') by Day = bin(ReportEndTime, 1d), Family, Category
 | extend failedPercent = iff(storedChecks == 0, real(null), round(100.0 * failedChecks / storedChecks, 2))
 | order by Day desc, Family asc, failedChecks desc
