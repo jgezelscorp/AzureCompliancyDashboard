@@ -99,7 +99,8 @@ def test_collector_persists_estate_tables_and_snapshot() -> None:
         with_sev = select(PolicyDefinitionRow).where(PolicyDefinitionRow.severity.is_not(None))
         assert s.scalars(with_sev).one().severity == "High"
         snap = s.scalars(select(EstateSnapshotRow)).one()
-        assert snap.metrics["headline"]["nonCompliant"] >= 1
+        metrics: Any = snap.metrics
+        assert metrics["headline"]["nonCompliant"] >= 1
         assert "hunter2" not in str(s.scalars(select(PolicyAssignmentRow)).one().parameters)
 
         data = policy.load_estate(s, frozenset([SUB]))
