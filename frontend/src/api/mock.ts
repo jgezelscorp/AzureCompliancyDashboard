@@ -287,6 +287,7 @@ export function createMockApi(): MetricsApi {
       }
       return resolve({
         snapshotAt: SNAPSHOT_AT,
+        category,
         checks: [...acc.values()].sort((a, b) => b.machinesFailed - a.machinesFailed),
       });
     },

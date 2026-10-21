@@ -42,9 +42,34 @@ def collect(session: Session) -> dict[str, object]:
     return out
 
 
+def check_category_diagnostics(session: Session) -> dict[str, object]:
+    """Counts only: stored source category values and how the current resolver classifies them."""
+    from collections import Counter
+
+    from app.db import CheckRow
+    from app.domain.categories import configured_overrides, derive_category, resolve_category
+
+    overrides = configured_overrides()
+    rows = list(session.scalars(select(CheckRow)))
+    resolved = [resolve_category(r.name, r.check_key, r.category, overrides) for r in rows]
+    return {
+        "checks": len(rows),
+        "storedSourceCategory": dict(Counter(r.category or "(none)" for r in rows)),
+        "resolvedCategory": dict(Counter(x.category for x in resolved)),
+        "resolvedSource": dict(Counter(x.source for x in resolved)),
+        "uncategorizedButDerivable": sum(
+            1
+            for r, x in zip(rows, resolved, strict=True)
+            if x.category == "Uncategorized" and derive_category(r.name) is not None
+        ),
+        "overrides": len(overrides),
+    }
+
+
 def main() -> None:
     with Session(get_engine(get_settings().database_url)) as session:
         print(json.dumps(collect(session), indent=2, default=str))
+        print(json.dumps(check_category_diagnostics(session), indent=2, default=str))
 
 
 if __name__ == "__main__":

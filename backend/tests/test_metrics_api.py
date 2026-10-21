@@ -244,6 +244,43 @@ def test_drilldown_counts_reproduce_golden_373() -> None:
     assert cis.json()["categories"] == []
 
 
+def test_category_drilldown_lists_only_checks_of_the_clicked_category() -> None:
+    e = env()
+    from app.db import CheckRow
+
+    names = [
+        "Access this computer from the network",
+        "Account lockout policy",
+        "Accounts: Rename administrator account",
+        "zzz unmappable synthetic",
+    ]
+    with e.factory() as s:
+        for row, name in zip(
+            s.scalars(select(CheckRow).limit(len(names))).all(), names, strict=True
+        ):
+            row.name = name
+            row.category = None
+            row.derived_category = None
+            row.category_source = None
+        s.commit()
+    url = "/api/v1/metrics/categories?family=AzureWindowsBaseline"
+    cats = e.client.get(url, headers=AUTH).json()["categories"]
+    assert sum(c["total"] for c in cats) == 373
+    seen: set[str] = set()
+    for c in cats:
+        body = e.client.get(
+            "/api/v1/metrics/checks",
+            params={"family": "AzureWindowsBaseline", "category": c["category"]},
+            headers=AUTH,
+        ).json()
+        assert body["category"] == c["category"]
+        keys = {x["checkKey"] for x in body["checks"]}
+        assert len(keys) == c["checks"]
+        assert not keys & seen
+        seen |= keys
+    assert len(seen) == 373
+
+
 def test_scopes_breakdown_keeps_families_separate() -> None:
     e = env("dual-family-distinct.json")
     body = e.client.get("/api/v1/metrics/scopes", headers=AUTH).json()
