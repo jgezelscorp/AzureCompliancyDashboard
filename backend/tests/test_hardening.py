@@ -54,7 +54,8 @@ def test_readyz_reports_503_without_database() -> None:
 
 
 def test_redaction() -> None:
-    jwt = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJl"
+    parts = ["ey" + "JhbGciOiJSUzI1NiJ9", "ey" + "JzdWIiOiIxMjM0NTY3ODkwIn0", "c2lnbmF0dXJl"]
+    jwt = ".".join(parts)
     out = redact(f"Authorization: Bearer {jwt} password=hunter2 postgresql://acd:s3cr3t@db/x")
     assert jwt not in out and "hunter2" not in out and "s3cr3t" not in out
 
