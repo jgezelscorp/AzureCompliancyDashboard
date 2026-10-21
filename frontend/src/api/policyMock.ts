@@ -181,6 +181,14 @@ export function createMockPolicyApi(): PolicyApi {
     }),
     quality: async () => quality,
     machineCoverage: async () => ({ snapshotAt: AT, groups: [] }),
-    machineDetail: async () => ({ machine: {}, snapshotAt: AT, families: [], policy: {}, history: [], historyNote: "0 samples so far.", labels: [] }),
+    machineDetail: async () => ({
+      machine: { machineId: "m1", name: "vm-synthetic", kind: "AzureVM", subscriptionId: SUB, resourceGroup: "rg-synthetic", location: "swedencentral", osName: "Windows Server", osBuild: null, eligibility: "eligible", tags: {} },
+      snapshotAt: AT,
+      families: [],
+      policy: { tally: HEADLINE, states: [] },
+      history: [],
+      historyNote: "0 samples so far.",
+      labels: [],
+    }),
   };
 }

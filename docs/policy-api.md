@@ -26,3 +26,13 @@ Metric definitions are in `docs/policy-estate.md`. There is no composite risk sc
 states its denominator and grain.
 
 Diagnostics: `python -m app.tools.dbcounts` prints table row counts only (read-only).
+
+## UI routes
+
+| Route | View |
+|-------|------|
+| `/overview` | CISO overview: KPI tiles with "how is this calculated" popovers, trend, breakdowns, top failing policies, riskiest groups, exemptions, machines, data quality; CSV export and print/PDF |
+| `/explorer?tab=states\|resources\|policies\|initiatives\|machines` | Sortable, paginated tables; every filter, sort and page is a URL query parameter, so views are deep links (the recipient still sees only their own RBAC scope) |
+| `/resource?id=` | Resource detail with its policy states |
+| `/machine?id=` | Machine detail: guest assignments, reports, checks by derived category, policy states, history |
+| `/technical`, `/ciso` | Existing machine baseline views |
