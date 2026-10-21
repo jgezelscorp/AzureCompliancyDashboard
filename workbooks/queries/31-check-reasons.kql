@@ -4,15 +4,13 @@
 // @note Requires a check selected above. Each row is one reason (code, phrase) from the latest Fresh report of one machine. A check may have several reasons; they do not change the check count.
 // @note Reason text is source-provided prose and may contain machine-specific values; it is shown as returned, with no normalization of expected/actual.
 // @nodata Select a check above, or the check reports no reasons.
-//#include machines
-//#include assignments
 //#include evidence
-evidence
 | where quality == 'Fresh'
 | where '{Family}' == '*' or family == '{Family}'
-| mv-expand r = resources
+| mv-expand r = resources limit 2000
 | where tostring(r.resourceId) == '{CheckKey}'
 | extend checkStatus = iff(tolower(tostring(r.complianceStatus)) in ('true', 'compliant'), 'Compliant', 'NonCompliant')
-| mv-expand reason = iff(array_length(r.reasons) == 0, dynamic([null]), r.reasons)
-| project machineName, kind, family, checkStatus, reportEnd, reasonCode = tostring(reason.code), reasonPhrase = tostring(reason.phrase), machineId
+| extend reasons = iff(array_length(r.reasons) > 0, r.reasons, dynamic([null]))
+| mv-expand reason = reasons limit 2000
+| project machineName, machineKind, family, checkStatus, reportEnd, reasonCode = tostring(reason.code), reasonPhrase = tostring(reason.phrase), machineId
 | order by checkStatus desc, machineName asc

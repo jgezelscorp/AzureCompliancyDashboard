@@ -5,9 +5,9 @@
 // @note Configuration version, package/module version, policy definition version, benchmark version/profile and OS build are different dimensions; only the first is shown here.
 // @note Benchmark version and profile are NOT derivable from ARG and are never inferred.
 // @nodata No guest configuration assignments for the baseline families in scope.
-//#include machines
 //#include assignments
-assignments
-| join kind=inner machines on machineId
+| join kind=inner (
+    //#include machines
+  ) on machineId
 | summarize assignmentsCount = count(), machinesCount = dcount(machineId), withReport = countif(hasReport == true) by family, gcVersion = iff(gcVersion == '', '(not exposed)', gcVersion)
 | order by family asc, gcVersion asc

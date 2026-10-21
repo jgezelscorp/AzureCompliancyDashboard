@@ -22,7 +22,7 @@ Use a non-production subscription with at least one Windows Azure VM and one Arc
 - [ ] Run each Resource Graph query in `workbooks/queries/` in Resource Graph Explorer; confirm table and column names, and that `latestAssignmentReport.endTime` is projected (else everything is UnknownAge).
 - [ ] Compare workbook output with the Python reference model (`scripts/metrics_reference.py`) on the same data; parity is not proven with real KQL.
 - [ ] Render the workbook in the portal (all tabs, drilldowns, check keys with unusual characters, conditional visibility, History tab).
-- [ ] Set `AzureBaselineDefinitionId` to the real policy definition GUID and confirm the policy rows are labelled.
+- [ ] Confirm `AzureBaselineDefinitionId` (default: built-in Azure compute security baseline) matches your assignments and the policy rows are labelled.
 - [ ] Collector: Policy Insights `api-version` (currently 2024-10-01), guest configuration versions, exemption handling, eligibility (currently OS type only).
 - [ ] Replace synthetic CIS fixtures with captured, sanitised live output; add live-evidence tests.
 - [ ] Sign-in: SPA PKCE flow, API token validation, viewer at subscription scope, and the RG-only viewer (known 403).

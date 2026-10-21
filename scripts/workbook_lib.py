@@ -33,11 +33,13 @@ LOGS_TABLES = {
     "ComplianceCollectionRuns_CL", "PolicyComplianceSnapshots_CL",
     "MachineConfigReports_CL", "MachineConfigChecks_CL",
 }
+# Replaced by Bicep (replace()) with the optional workspace resource id parameter; empty means unset.
+DEFAULT_WORKSPACE_TOKEN = "__DEFAULT_WORKSPACE_RESOURCE_ID__"
 LOGS_WORKSPACE_TYPE = "microsoft.operationalinsights/workspaces"
 TIME_RANGE_DEFAULT_MS = 2592000000
 TIME_RANGE_CHOICES_MS = [86400000, 604800000, 2592000000, 7776000000, 31536000000, 34560000000]
 
-INCLUDE = re.compile(r"^//#include\s+(\w+)\s*$")
+INCLUDE = re.compile(r"^\s*//#include\s+(\w+)\s*$")
 HEADER = re.compile(r"^// @(\w+)\s*(.*)$")
 
 INTRO = (
@@ -114,7 +116,19 @@ def read_text(path):
 
 
 def load_fragments():
-    return {p.stem: read_text(p).rstrip("\n") for p in sorted(FRAGMENT_DIR.glob("*.kql"))}
+    """Fragments may include other fragments. Resource Graph has no `let`, so includes are textual."""
+    raw = {p.stem: read_text(p).rstrip("\n") for p in sorted(FRAGMENT_DIR.glob("*.kql"))}
+
+    def expand(name, seen=()):
+        if name in seen:
+            raise ValueError(f"circular fragment include: {name}")
+        lines = []
+        for line in raw[name].splitlines():
+            inc = INCLUDE.match(line.strip())
+            lines.append(expand(inc.group(1), seen + (name,)) if inc else line)
+        return "\n".join(lines)
+
+    return {name: expand(name) for name in raw}
 
 
 def parse_query(path, fragments):
@@ -258,7 +272,7 @@ def _parameters():
                 {
                     "id": "param-Workspace", "version": "KqlParameterItem/1.0", "name": "Workspace",
                     "label": "Log Analytics workspace (History tab, optional)", "type": 5,
-                    "isRequired": False, "multiSelect": False, "value": "",
+                    "isRequired": False, "multiSelect": False, "value": DEFAULT_WORKSPACE_TOKEN,
                     "queryType": 1, "resourceType": "microsoft.resourcegraph/resources",
                     "crossComponentResources": ["{Subscriptions}"],
                     "query": "resources\n| where type =~ 'microsoft.operationalinsights/workspaces'\n"
@@ -279,9 +293,9 @@ def _parameters():
                      "6dcfa239-b481-4de9-a03f-980f24f3b0bb",
                      "Built-in policy definition GUID used only to label policy state rows as native CIS."),
                 text("AzureBaselineDefinitionId", "Azure Windows baseline policy definition GUID",
-                     "00000000-0000-0000-0000-000000000000",
-                     "Set to the GUID of the Azure Windows baseline policy definition in your estate; "
-                     "the placeholder labels no rows."),
+                     "72650e9f-97bc-4b2a-ab5f-9781a9fcecbc",
+                     "Built-in policy definition GUID 'Windows machines should meet requirements of the "
+                     "Azure compute security baseline'; used only to label policy state rows."),
                 dict(text("Category", "Selected category", "-", "Set by selecting a category row."),
                      isHiddenParameter=True),
                 dict(text("CheckKey", "Selected check", "-", "Set by selecting a check row."),
