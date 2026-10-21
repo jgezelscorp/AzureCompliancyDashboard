@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client";
 import { useMetricsApi } from "../api/context";
+import { errorText } from "./common";
 import type { ExportJob, ExportRequest } from "../api/types";
 import { formatTimestamp } from "../lib/format";
 
@@ -16,6 +17,7 @@ function failureText(e: unknown): string {
     if (e.status === 409) return "There is no collected evidence to export yet.";
     if (e.status === 413) return "The export is too large. Narrow the scope and try again.";
     if (e.status === 429) return "Too many active exports. Wait for existing ones to expire.";
+    if (e.status <= 0) return `Export failed: ${errorText(e.status)}`;
     return `The export failed (${e.status}).`;
   }
   return "The service could not be reached.";

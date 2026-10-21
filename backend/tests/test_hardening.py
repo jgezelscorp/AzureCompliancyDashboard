@@ -23,6 +23,12 @@ def test_security_headers_and_request_id(client: TestClient) -> None:
     assert "strict-transport-security" not in r.headers
 
 
+def test_large_responses_are_gzipped(client: TestClient) -> None:
+    r = client.get("/openapi.json", headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-encoding"] == "gzip"
+    assert r.json()["info"]["title"]
+
+
 def test_hsts_in_production() -> None:
     s = Settings(
         environment="production",

@@ -28,16 +28,19 @@ export function seriesFrom(points: HistoryPoint[], aggregates: boolean): TrendSe
 
 const W = 320;
 const H = 90;
+const PAD = 6;
 
 export function Trend({ series, samplingNote }: { series: TrendSeries; samplingNote?: string }) {
   const known = series.values.filter((v) => v.value !== null);
   if (series.values.length === 0) return <p className="state state-empty">No history yet.</p>;
-  const step = series.values.length > 1 ? W / (series.values.length - 1) : 0;
+  const x = (i: number) =>
+    series.values.length > 1 ? PAD + (i * (W - 2 * PAD)) / (series.values.length - 1) : W / 2;
+  const y = (v: number) => PAD + (1 - v / 100) * (H - 2 * PAD);
   let path = "";
   series.values.forEach((v, i) => {
     if (v.value === null) return;
     const cmd = path === "" || series.values[i - 1]?.value === null ? "M" : "L";
-    path += `${cmd}${(i * step).toFixed(1)},${(H - (v.value / 100) * H).toFixed(1)} `;
+    path += `${cmd}${x(i).toFixed(1)},${y(v.value).toFixed(1)} `;
   });
   const last = known.at(-1);
   return (
@@ -47,9 +50,20 @@ export function Trend({ series, samplingNote }: { series: TrendSeries; samplingN
         {last ? ` — latest ${last.value?.toFixed(1)}%` : " — no data points"}
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${series.label} trend, ${known.length} samples`}>
-        <line x1="0" y1={H} x2={W} y2={H} stroke="currentColor" strokeOpacity="0.4" />
+        <line x1="0" y1={H - PAD} x2={W} y2={H - PAD} stroke="currentColor" strokeOpacity="0.4" />
         <path d={path} fill="none" stroke="currentColor" strokeWidth="2" />
+        {series.values.map((v, i) =>
+          v.value === null ? null : (
+            <circle key={v.at} className="trend-point" cx={x(i)} cy={y(v.value)} r="3.5" fill="currentColor" />
+          ),
+        )}
       </svg>
+      {known.length < 3 && (
+        <p className="detail">
+          Only {known.length} {known.length === 1 ? "sample" : "samples"} so far; a trend line appears as more
+          collections complete (every few hours).
+        </p>
+      )}
       {samplingNote && <p className="detail">{samplingNote} Gaps mean no sample, not compliance.</p>}
       <details>
         <summary>Show values as a table</summary>

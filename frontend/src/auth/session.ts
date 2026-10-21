@@ -12,6 +12,7 @@ interface Token {
 /** Access tokens live in memory only; only the short-lived PKCE verifier/state use sessionStorage. */
 let token: Token | null = null;
 let userName: string | null = null;
+let userLogin: string | null = null;
 
 export function isSignedIn(now = Date.now()): boolean {
   return token !== null && token.expiresAt - EXPIRY_MARGIN_MS > now;
@@ -63,6 +64,7 @@ export async function completeSignInIfCallback(): Promise<boolean> {
   const body = (await res.json()) as { access_token: string; expires_in: number };
   token = { value: body.access_token, expiresAt: Date.now() + body.expires_in * 1000 };
   userName = nameFromToken(body.access_token);
+  userLogin = loginFromToken(body.access_token);
   return true;
 }
 
@@ -79,26 +81,44 @@ export function registerSessionTokenProvider(): void {
 export function signOutLocal(): void {
   token = null;
   userName = null;
+  userLogin = null;
 }
 
 /** Display name from the token claims; the token is only decoded for display, never trusted. */
 export function currentUserName(): string | null {
-  return isSignedIn() ? userName : null;
+  return isSignedIn() ? (userName ?? userLogin) : null;
+}
+
+/** Sign-in name (UPN) shown next to the display name so the account is unambiguous. */
+export function currentUserLogin(): string | null {
+  return isSignedIn() && userName !== userLogin ? userLogin : null;
+}
+
+function claimsOf(jwt: string): Record<string, unknown> {
+  try {
+    const payload = jwt.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/");
+    if (!payload) return {};
+    const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+  } catch {
+    return {}; // opaque or malformed token: no display name
+  }
+}
+
+function firstString(claims: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const v = claims[key];
+    if (typeof v === "string" && v) return v;
+  }
+  return null;
 }
 
 function nameFromToken(jwt: string): string | null {
-  try {
-    const payload = jwt.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/");
-    if (!payload) return null;
-    const claims = JSON.parse(atob(payload)) as Record<string, unknown>;
-    for (const key of ["name", "preferred_username", "upn", "email"]) {
-      const v = claims[key];
-      if (typeof v === "string" && v) return v;
-    }
-  } catch {
-    // opaque or malformed token: no display name
-  }
-  return null;
+  return firstString(claimsOf(jwt), ["name", "preferred_username", "upn", "email"]);
+}
+
+function loginFromToken(jwt: string): string | null {
+  return firstString(claimsOf(jwt), ["preferred_username", "upn", "email"]);
 }
 
 /** Clears the session and the sessionStorage state, then ends the Entra session. */
