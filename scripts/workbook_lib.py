@@ -12,8 +12,10 @@ QUERY_DIR = ROOT / "workbooks" / "queries"
 FRAGMENT_DIR = QUERY_DIR / "_fragments"
 WORKBOOK_PATH = ROOT / "workbooks" / "azure-compliance.workbook.json"
 
+
 TABS = [
     ("overview", "Overview / CISO"),
+    ("policy", "Policy estate"),
     ("baselines", "Baselines"),
     ("categories", "Categories"),
     ("checks", "Check / reason detail"),
@@ -63,6 +65,14 @@ OVERVIEW_DEFINITIONS = (
     "| Coverage | eligible machines with assignment / usable report / fresh report, over Windows-eligible machines | machine x family |\n"
     "| Green machine | evidence Fresh (report endTime within 24h) AND reported state Compliant | machine x family |\n\n"
     "A ratio with a zero denominator is shown as no data, never 0% or 100%."
+)
+
+POLICY_TEXT = (
+    "### Policy estate (all resources)\n\n"
+    "Live Azure Policy state rows from Resource Graph for every assigned policy, not only Machine "
+    "Configuration. Percent = Compliant / (Compliant + NonCompliant); Exempt and other states are "
+    "shown apart. Counts are state rows and can differ from the standalone app, which stores the "
+    "Policy Insights latest-state API result. Exemptions are on the Evidence tab."
 )
 
 EVIDENCE_TEXT = (
@@ -374,7 +384,7 @@ def _tabs():
 def build_workbook():
     queries = load_queries()
     items = [_markdown("intro", INTRO), _parameters(), _tabs()]
-    intro_by_tab = {"overview": OVERVIEW_DEFINITIONS, "history": HISTORY_TEXT}
+    intro_by_tab = {"overview": OVERVIEW_DEFINITIONS, "policy": POLICY_TEXT, "history": HISTORY_TEXT}
     for key, _label in TABS:
         if key in intro_by_tab:
             items.append(_markdown(f"intro - {key}", intro_by_tab[key], key))

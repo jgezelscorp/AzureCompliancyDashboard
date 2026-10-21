@@ -1,0 +1,14 @@
+// @id pol-resourcetype
+// @tab policy
+// @title Compliance by resource type and subscription (policy state rows)
+// @note Grain is the policy state row; nonCompliantResources counts distinct resources with at least one NonCompliant state.
+// @note Percent excludes Exempt and other states; an empty percentage means no Compliant or NonCompliant rows.
+// @nodata No policy states visible in scope.
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| extend state = tostring(properties.complianceState)
+| extend resourceType = tolower(tostring(properties.resourceType))
+| summarize compliant = countif(state =~ 'Compliant'), nonCompliant = countif(state =~ 'NonCompliant'), nonCompliantResources = dcountif(tolower(tostring(properties.resourceId)), state =~ 'NonCompliant') by resourceType, subscriptionId
+| extend policyCompliancePercent = iff(compliant + nonCompliant == 0, real(null), round(100.0 * compliant / (compliant + nonCompliant), 2))
+| order by nonCompliant desc
