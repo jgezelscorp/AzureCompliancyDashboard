@@ -48,7 +48,7 @@ The collector uses its managed identity or developer credential with scope `http
 
 ## Delivery behavior
 
-- After a run is committed, rows are written to the `logs_outbox` table (migration 0004), idempotent on `(stream, RecordKey)`, and delivered in batches. **PostgreSQL is the system of record; a Logs outage never changes run status, metrics or evidence.**
+- After a run is committed, rows are written to the `logs_outbox` table (migration 0005), idempotent on `(stream, RecordKey)`, and delivered in batches. **PostgreSQL is the system of record; a Logs outage never changes run status, metrics or evidence.**
 - Transient failures (401/403 until RBAC propagates, 408/429, 5xx, network, token) retry inline with backoff, honouring `Retry-After`, then are rescheduled; later runs drain the backlog. After `ACD_LOGS_MAX_ATTEMPTS` rows are marked dead (kept for diagnosis, purged later).
 - 400/413 batches are bisected so one bad row cannot block the rest; only the rejected row is marked dead.
 - `GET /api/v1/collection/sink` shows `enabled`, counts, oldest pending age and a state (`ok`, `backlog`, `degraded`). No payloads or remote error text.
