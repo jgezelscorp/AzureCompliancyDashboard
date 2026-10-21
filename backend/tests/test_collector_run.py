@@ -110,6 +110,19 @@ def test_golden_373_checks_in_database() -> None:
         assert done == 109
 
 
+def test_reports_stored_without_checks_are_refetched_and_filled() -> None:
+    bundle = load_fixture("arc-azurewindowsbaseline-373.json")
+    runner, _, factory = make_runner(bundle)
+    runner.run_once()
+    with factory() as s, s.begin():
+        s.query(CheckRow).delete()
+    again, _, _ = make_runner(bundle, factory, clock=snap_ts(bundle) + timedelta(hours=6))
+    again.run_once()
+    with factory() as s:
+        assert s.scalar(select(func.count()).select_from(CheckRow)) == 373
+        assert s.scalar(select(func.count()).select_from(ReportRow)) == 1
+
+
 def test_rerun_is_idempotent_and_history_grows() -> None:
     bundle = load_fixture("cis-synthetic-mixed.json")
     runner, _, factory = make_runner(bundle)

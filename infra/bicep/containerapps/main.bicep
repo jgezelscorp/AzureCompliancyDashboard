@@ -26,6 +26,9 @@ param frontendImage string = ''
 param tenantId string = '00000000-0000-0000-0000-000000000000'
 @description('Comma-separated subscription IDs the collector may read.')
 param subscriptionIds string = '00000000-0000-0000-0000-000000000000'
+
+@description('Policy definition GUID=BaselineFamily pairs (comma-separated). Only mapped policy states count toward a baseline family; the default is the public built-in "Windows machines should meet requirements of the Azure compute security baseline".')
+param policyFamilyMap string = '72650e9f-97bc-4b2a-ab5f-9781a9fcecbc=AzureWindowsBaseline'
 param authApiClientId string = '00000000-0000-0000-0000-000000000000'
 param authSpaClientId string = '00000000-0000-0000-0000-000000000000'
 
@@ -202,6 +205,7 @@ var commonEnv = concat(
     { name: 'ACD_DATABASE_URL', secretRef: 'database-url' }
     { name: 'ACD_TENANT_ID', value: tenantId }
     { name: 'ACD_SUBSCRIPTION_IDS', value: subscriptionIds }
+    { name: 'ACD_POLICY_FAMILY_MAP', value: policyFamilyMap }
     { name: 'ACD_CORS_ORIGINS', value: webOrigin }
     { name: 'ACD_AUTH_TENANT_ID', value: tenantId }
     { name: 'ACD_AUTH_API_CLIENT_ID', value: authApiClientId }
