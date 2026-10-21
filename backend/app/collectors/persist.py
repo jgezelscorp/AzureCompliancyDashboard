@@ -13,12 +13,20 @@ from app.db_history import (
     MetricSnapshotRow,
     PolicyStateRow,
 )
+from app.db_policy import (
+    DefenderSnapshotRow,
+    EstateResourceRow,
+    EstateSnapshotRow,
+    PolicyAssignmentRow,
+    PolicyExemptionRow,
+)
 from app.domain.categories import (
     configured_overrides,
     derive_category,
     resolve_category,
     rules_version,
 )
+from app.metrics.policy import diff_states
 from app.models import Assignment, Machine, PolicyState, Report
 
 
@@ -151,10 +159,28 @@ def insert_reports(session: Session, reports: Iterable[Report], run_id: int) -> 
 
 
 def replace_policy_states(
-    session: Session, subscription_id: str, states: Iterable[PolicyState], run_id: int
-) -> int:
-    """Upsert the latest states for a subscription; rows not returned this run are removed."""
-    count = 0
+    session: Session,
+    subscription_id: str,
+    states: Iterable[PolicyState],
+    run_id: int,
+    extras: dict[tuple[str, str, str], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Upsert the latest states for a subscription; rows not returned this run are removed.
+
+    Returns the change set against the previous collection (regressions, recoveries, ...).
+    """
+    old = {
+        (r.resource_id, r.policy_assignment_id, r.reference_id): r.compliance_state
+        for r in session.execute(
+            select(
+                PolicyStateRow.resource_id,
+                PolicyStateRow.policy_assignment_id,
+                PolicyStateRow.reference_id,
+                PolicyStateRow.compliance_state,
+            ).where(PolicyStateRow.subscription_id == subscription_id)
+        )
+    }
+    new: dict[tuple[str, str, str], str] = {}
     for s in states:
         key = (s.resource_id, s.policy_assignment_id, s.policy_definition_reference_id or "")
         row = session.get(PolicyStateRow, key)
@@ -170,7 +196,9 @@ def replace_policy_states(
         row.is_compliant = s.is_compliant
         row.state_timestamp = s.timestamp
         row.run_id = run_id
-        count += 1
+        for name, value in (extras or {}).get(key, {}).items():
+            setattr(row, name, value)
+        new[key] = s.compliance_state
     session.flush()
     session.execute(
         delete(PolicyStateRow).where(
@@ -178,7 +206,7 @@ def replace_policy_states(
             or_(PolicyStateRow.run_id != run_id, PolicyStateRow.run_id.is_(None)),
         )
     )
-    return count
+    return diff_states(old, new)
 
 
 def add_months(value: datetime, months: int) -> datetime:
@@ -218,11 +246,20 @@ def purge_history(session: Session, now: datetime, months: int = 13) -> dict[str
     )
     session.execute(delete(CheckRow).where(CheckRow.report_id.in_(old_reports)))
     out["reports"] = _count(session.execute(delete(ReportRow).where(ReportRow.end_time < cutoff)))
+    out["estateSnapshots"] = _count(
+        session.execute(delete(EstateSnapshotRow).where(EstateSnapshotRow.snapshot_at < cutoff))
+    )
+    session.execute(delete(DefenderSnapshotRow).where(DefenderSnapshotRow.snapshot_at < cutoff))
     referenced = or_(
         exists().where(ReportRow.run_id == CollectionRunRow.run_id),
         exists().where(AssignmentRow.run_id == CollectionRunRow.run_id),
         exists().where(PolicyStateRow.run_id == CollectionRunRow.run_id),
         exists().where(MetricSnapshotRow.run_id == CollectionRunRow.run_id),
+        exists().where(EstateSnapshotRow.run_id == CollectionRunRow.run_id),
+        exists().where(DefenderSnapshotRow.run_id == CollectionRunRow.run_id),
+        exists().where(PolicyAssignmentRow.run_id == CollectionRunRow.run_id),
+        exists().where(PolicyExemptionRow.run_id == CollectionRunRow.run_id),
+        exists().where(EstateResourceRow.run_id == CollectionRunRow.run_id),
     )
     out["runs"] = _count(
         session.execute(

@@ -286,6 +286,34 @@
       "requiredRbac": { "actions": ["Microsoft.Security/assessments/read"], "dataActions": [], "scope": "subscription", "verification": "unverified-action-name" }
     },
     {
+      "id": "defender-secure-scores",
+      "title": "Defender for Cloud secure score (optional)",
+      "optional": true,
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Security/secureScores",
+      "apiVersion": "2020-01-01",
+      "apiVersionStatus": "verified by read-only probe",
+      "purpose": "Optional, separately attributed context. 403/404/empty is recorded as 'not available', never as an error or a good score.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Security/secureScores/read"], "dataActions": [], "scope": "subscription", "verification": "covered by Reader */read" }
+    },
+    {
+      "id": "defender-regulatory-standards",
+      "title": "Defender for Cloud regulatory compliance standards (optional)",
+      "optional": true,
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Security/regulatoryComplianceStandards",
+      "apiVersion": "2019-01-01-preview",
+      "apiVersionStatus": "verified by read-only probe",
+      "purpose": "Optional, separately attributed context. Not available without the Defender plan.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Security/regulatoryComplianceStandards/read"], "dataActions": [], "scope": "subscription", "verification": "covered by Reader */read" }
+    },
+    {
       "id": "logs-ingestion",
       "title": "Logs Ingestion API to dedicated DCR/custom tables (optional reporting sink)",
       "optional": true,

@@ -123,8 +123,7 @@ def load_bundle(
                     "startTime": _utc(r.start_time),
                     "endTime": _utc(r.end_time),
                     "checks": [
-                        _check_dict(c, overrides)
-                        for c in checks_by_report.get(r.report_id, [])
+                        _check_dict(c, overrides) for c in checks_by_report.get(r.report_id, [])
                     ],
                 }
                 for r in latest.values()

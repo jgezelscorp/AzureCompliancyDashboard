@@ -35,6 +35,16 @@ class PolicyStateRow(Base):
     is_compliant: Mapped[bool | None] = mapped_column(Boolean)
     state_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     run_id: Mapped[int | None] = mapped_column(ForeignKey("collection_runs.run_id"))
+    resource_type: Mapped[str | None] = mapped_column(Text)
+    resource_group: Mapped[str | None] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(Text)
+    assignment_name: Mapped[str | None] = mapped_column(Text)
+    definition_name: Mapped[str | None] = mapped_column(Text)
+    initiative_id: Mapped[str | None] = mapped_column(Text)
+    initiative_name: Mapped[str | None] = mapped_column(Text)
+    state_category: Mapped[str | None] = mapped_column(Text)
+    effect: Mapped[str | None] = mapped_column(String(48))
+    group_names: Mapped[list[str] | None] = mapped_column(JSONB)
 
 
 class MetricSnapshotRow(Base):

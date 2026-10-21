@@ -25,11 +25,15 @@ MACHINE_QUERY = """resources
           osBuild = iff(isnotempty(buildA), buildA, buildB)
 | order by id asc"""
 
-# Unverified server-side filter; kept configurable by callers if the spike changes it.
-POLICY_STATE_FILTER = (
-    "ResourceType eq 'microsoft.compute/virtualmachines' "
-    "or ResourceType eq 'microsoft.hybridcompute/machines'"
-)
+RESOURCE_QUERY = """resources
+| project id, name, type, subscriptionId, resourceGroup, location, tags
+| order by id asc"""
+MAX_INVENTORY_ROWS = 50_000
+AUTHZ_API = "2023-04-01"
+EXEMPTION_API = "2022-07-01-preview"
+DEFINITION_API = "2021-06-01"
+SECURITY_SCORE_API = "2020-01-01"
+SECURITY_STANDARDS_API = "2019-01-01-preview"
 
 
 @dataclass
@@ -88,15 +92,43 @@ def get_report(client: ArmClient, report_id: str) -> dict[str, Any]:
     return body
 
 
-def query_policy_states(
-    client: ArmClient, subscription_id: str, state_filter: str = POLICY_STATE_FILTER
-) -> list[dict[str, Any]]:
+def query_policy_states(client: ArmClient, subscription_id: str) -> list[dict[str, Any]]:
+    """All latest policy states of the subscription, every resource type."""
     path = (
         f"/subscriptions/{subscription_id}/providers/Microsoft.PolicyInsights"
         "/policyStates/latest/queryResults"
     )
-    params = {"$top": "1000", "$filter": state_filter}
+    params = {"$top": "1000"}
     return [v for p in client.post_pages(path, PI_API, params=params) for v in _values(p)]
+
+
+def list_policy_assignments(client: ArmClient, subscription_id: str) -> list[dict[str, Any]]:
+    path = f"/subscriptions/{subscription_id}/providers/Microsoft.Authorization/policyAssignments"
+    return [v for p in client.get_pages(path, AUTHZ_API) for v in _values(p)]
+
+
+def list_policy_exemptions(client: ArmClient, subscription_id: str) -> list[dict[str, Any]]:
+    path = f"/subscriptions/{subscription_id}/providers/Microsoft.Authorization/policyExemptions"
+    return [v for p in client.get_pages(path, EXEMPTION_API) for v in _values(p)]
+
+
+def get_policy_definition(client: ArmClient, definition_id: str) -> dict[str, Any]:
+    """Policy or initiative definition by full id (built-in, subscription or management group)."""
+    _, body = client.request("GET", definition_id, DEFINITION_API)
+    return body
+
+
+def list_secure_scores(client: ArmClient, subscription_id: str) -> list[dict[str, Any]]:
+    path = f"/subscriptions/{subscription_id}/providers/Microsoft.Security/secureScores"
+    return [v for p in client.get_pages(path, SECURITY_SCORE_API) for v in _values(p)]
+
+
+def list_regulatory_standards(client: ArmClient, subscription_id: str) -> list[dict[str, Any]]:
+    path = (
+        f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+        "/regulatoryComplianceStandards"
+    )
+    return [v for p in client.get_pages(path, SECURITY_STANDARDS_API) for v in _values(p)]
 
 
 def summarize_policy(client: ArmClient, subscription_id: str) -> dict[str, Any]:
