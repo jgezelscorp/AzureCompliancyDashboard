@@ -1,0 +1,390 @@
+{
+  "manifestVersion": "0.1.0",
+  "workPackage": "I01",
+  "status": "draft-pending-contract-spike",
+  "researchDate": "2026-10-21",
+  "description": "Version-pinned allowlist of Azure data sources for the Azure Policy / Machine Configuration reporting solution. Not a generic Azure proxy: only entries below may be called, only with the listed method, host, path template and api-version.",
+  "placeholders": {
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "note": "All identifiers in this repository are placeholders. Never commit tenant, subscription or resource identifiers."
+  },
+  "allowlistPolicy": {
+    "rule": "Match on method + host + normalized path template + api-version. A GET-only rule is NOT sufficient: POST is permitted only for the entries flagged readOnlyQueryPost.",
+    "defaultAction": "deny",
+    "permittedHosts": ["management.azure.com"],
+    "optionalSinkHosts": ["*.ingest.monitor.azure.com", "api.loganalytics.azure.com"],
+    "continuationValidation": [
+      "nextLink/@odata.nextLink host must be exactly an entry in permittedHosts",
+      "scheme must be https and no userinfo/port override",
+      "path must match the same path template family as the originating request",
+      "subscription/scope in the link must be inside the configured, selected scope",
+      "api-version must equal the pinned api-version of the originating entry",
+      "credentials are never sent to a link that fails validation"
+    ],
+    "pagingCompleteness": "Pagination must be exhausted; a result that cannot be continued is recorded as partial/truncated, never silently complete."
+  },
+  "sources": [
+    {
+      "id": "arg-query",
+      "title": "Azure Resource Graph query",
+      "method": "POST",
+      "readOnlyQueryPost": true,
+      "host": "management.azure.com",
+      "pathTemplate": "/providers/Microsoft.ResourceGraph/resources",
+      "apiVersion": "2024-04-01",
+      "apiVersionStatus": "verified-stable-in-research (S4)",
+      "purpose": "Inventory and indexed governance evidence over Resources, PolicyResources, GuestConfigurationResources and ResourceContainers for explicitly selected subscriptions.",
+      "requestShape": {
+        "body": ["query", "subscriptions (explicit selected IDs, never implicit whole directory)", "options.$top (max 1000)", "options.$skipToken", "options.resultFormat"]
+      },
+      "paging": {
+        "mechanism": "$skipToken",
+        "maxPageSize": 1000,
+        "rules": [
+          "replay identical query and scope with returned $skipToken",
+          "use stable 'order by id asc' and project a scalar id",
+          "inspect count, totalRecords and resultTruncated",
+          "do not use limit/take/sample in production collection (prevents continuation)",
+          "check mv-expand expansion limits and partition if required",
+          "multi-page results are not a transactional snapshot"
+        ]
+      },
+      "classification": "read-only",
+      "requiredRbac": {
+        "actions": ["Microsoft.ResourceGraph/resources/read"],
+        "dataActions": [],
+        "scope": "selected subscriptions (results are limited by the caller's read access)",
+        "verification": "unverified-exact-permission-test-required"
+      },
+      "notes": "ARG is a possibly lagging projection and scrubs PII; it is not authorization evidence for report properties."
+    },
+    {
+      "id": "policyinsights-querystates",
+      "title": "Policy Insights latest policy states query",
+      "method": "POST",
+      "readOnlyQueryPost": true,
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.PolicyInsights/policyStates/latest/queryResults",
+      "apiVersion": "2024-10-01",
+      "apiVersionStatus": "unverified-in-this-work-package (carried from plan; confirm in contract spike)",
+      "purpose": "Latest policy compliance states per resource/assignment/initiative member for a subscription.",
+      "requestShape": {
+        "query": ["$top", "$filter", "$select", "$orderby", "$from", "$to (explicit query window)", "$skiptoken"]
+      },
+      "paging": {
+        "mechanism": "@odata.nextLink / $skiptoken",
+        "rules": ["follow returned continuation link after host/path/api-version validation", "preserve the explicit query window used"]
+      },
+      "classification": "read-only",
+      "requiredRbac": {
+        "actions": ["Microsoft.PolicyInsights/policyStates/queryResults/action"],
+        "dataActions": [],
+        "scope": "subscription",
+        "verification": "unverified-exact-permission-test-required (Reader must not be assumed to include this action)"
+      }
+    },
+    {
+      "id": "policyinsights-summarize",
+      "title": "Policy Insights latest policy states summarize",
+      "method": "POST",
+      "readOnlyQueryPost": true,
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.PolicyInsights/policyStates/latest/summarize",
+      "apiVersion": "2024-10-01",
+      "apiVersionStatus": "unverified-in-this-work-package (carried from plan; confirm in contract spike)",
+      "purpose": "Subscription-level summary used for reconciliation only; app metrics are computed from per-row authorized evidence.",
+      "paging": { "mechanism": "none-documented; single response", "rules": [] },
+      "classification": "read-only",
+      "requiredRbac": {
+        "actions": ["Microsoft.PolicyInsights/policyStates/summarize/action"],
+        "dataActions": [],
+        "scope": "subscription",
+        "verification": "unverified-exact-permission-test-required"
+      },
+      "notes": "Whole-subscription summaries must not be served to a viewer without authorization to every underlying row."
+    },
+    {
+      "id": "policy-assignments-list",
+      "title": "Policy assignments",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/policyAssignments",
+      "alsoByArmId": "/{policyAssignmentId} (GET)",
+      "apiVersion": "2023-04-01",
+      "apiVersionStatus": "pinned-pending-spike (2023-04-01 is the long-standing stable version; a newer stable 2026-07-01 exists per public docs but its response differences are NOT evaluated)",
+      "purpose": "Assignments, parameters, selectors/overrides, enforcement mode, scope.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink until exhausted"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/policyAssignments/read"], "dataActions": [], "scope": "subscription and inherited scopes", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "policy-definitions-get",
+      "title": "Policy definitions (built-in and custom)",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/providers/Microsoft.Authorization/policyDefinitions/{policyDefinitionName}",
+      "alternatePathTemplates": ["/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/policyDefinitions/{policyDefinitionName}"],
+      "apiVersion": "2023-04-01",
+      "apiVersionStatus": "pinned-pending-spike (see policy-assignments-list)",
+      "purpose": "Resolve definition identity, effective version and guest configuration metadata by known ID (e.g. the CIS definition).",
+      "paging": { "mechanism": "nextLink for list forms only", "rules": ["Prefer GET by known ID; built-in catalog listing is complete only after nextLink exhaustion"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/policyDefinitions/read"], "dataActions": [], "scope": "tenant/subscription", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "policy-definition-versions-get",
+      "title": "Policy definition versions",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/providers/Microsoft.Authorization/policyDefinitions/{policyDefinitionName}/versions/{policyDefinitionVersion}",
+      "apiVersion": "2023-04-01",
+      "apiVersionStatus": "unverified (exact version availability for definition versions to be confirmed in contract spike)",
+      "purpose": "Record the effective definition version of an assignment.",
+      "paging": { "mechanism": "nextLink for list forms", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/policyDefinitions/versions/read"], "dataActions": [], "scope": "tenant/subscription", "verification": "unverified-action-name" }
+    },
+    {
+      "id": "policy-setdefinitions-get",
+      "title": "Policy initiative (set) definitions",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/providers/Microsoft.Authorization/policySetDefinitions/{policySetDefinitionName}",
+      "alternatePathTemplates": ["/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/policySetDefinitions/{policySetDefinitionName}"],
+      "apiVersion": "2023-04-01",
+      "apiVersionStatus": "pinned-pending-spike (see policy-assignments-list)",
+      "purpose": "Initiative membership and policyDefinitionReferenceId resolution.",
+      "paging": { "mechanism": "nextLink for list forms", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/policySetDefinitions/read"], "dataActions": [], "scope": "tenant/subscription", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "policy-exemptions-list",
+      "title": "Policy exemptions",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/policyExemptions",
+      "apiVersion": "2022-07-01-preview",
+      "apiVersionStatus": "UNVERIFIED: a version discrepancy exists between sources (preview vs stable); the contract spike must choose and fixture-test. Do not rely on this value.",
+      "purpose": "Exempt state attribution and expiry.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/policyExemptions/read"], "dataActions": [], "scope": "subscription", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "guestconfig-assignments-vm",
+      "title": "Machine Configuration assignments - Azure VM",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachines/{vmName}/providers/Microsoft.GuestConfiguration/guestConfigurationAssignments",
+      "alsoByName": ".../guestConfigurationAssignments/{assignmentName} (GET)",
+      "apiVersion": "2024-04-05",
+      "apiVersionStatus": "verified-stable-in-research (S8-S13)",
+      "purpose": "Assignment identity, configuration name/version, content hash, parameter hash, compliance status, latestReportId.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.GuestConfiguration/guestConfigurationAssignments/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "guestconfig-assignments-arc",
+      "title": "Machine Configuration assignments - Arc server",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.HybridCompute/machines/{machineName}/providers/Microsoft.GuestConfiguration/guestConfigurationAssignments",
+      "alsoByName": ".../guestConfigurationAssignments/{assignmentName} (GET)",
+      "apiVersion": "2024-04-05",
+      "apiVersionStatus": "verified-stable-in-research (S8-S13); availability in the target Azure cloud is an implementation gate",
+      "purpose": "Same as guestconfig-assignments-vm for Arc-enabled servers.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.GuestConfiguration/guestConfigurationAssignments/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "guestconfig-reports-vm",
+      "title": "Machine Configuration reports - Azure VM (list and detail)",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachines/{vmName}/providers/Microsoft.GuestConfiguration/guestConfigurationAssignments/{assignmentName}/reports",
+      "alternatePathTemplates": ["{pathTemplate}/{reportId} (report detail)"],
+      "apiVersion": "2024-04-05",
+      "apiVersionStatus": "verified-stable-in-research (S8-S13)",
+      "purpose": "Per-check resources[] with complianceStatus and reasons[]. Use report GET for evidence; list is latest-first but freshness is judged by evaluation time.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink", "deduplicate repeated reports by reportId"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.GuestConfiguration/guestConfigurationAssignments/reports/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" },
+      "notes": "Retention of upstream reports is unknown; do not promise backfill."
+    },
+    {
+      "id": "guestconfig-reports-arc",
+      "title": "Machine Configuration reports - Arc server (list and detail)",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.HybridCompute/machines/{machineName}/providers/Microsoft.GuestConfiguration/guestConfigurationAssignments/{assignmentName}/reports",
+      "alternatePathTemplates": ["{pathTemplate}/{reportId} (report detail)"],
+      "apiVersion": "2024-04-05",
+      "apiVersionStatus": "verified-stable-in-research (S8-S13)",
+      "purpose": "Same as guestconfig-reports-vm for Arc-enabled servers.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink", "deduplicate repeated reports by reportId"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.GuestConfiguration/guestConfigurationAssignments/reports/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "arm-vm-get",
+      "title": "Azure VM targeted enrichment",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachines/{vmName}",
+      "alternatePathTemplates": ["{pathTemplate}/extensions"],
+      "apiVersion": "UNPINNED",
+      "apiVersionStatus": "UNVERIFIED: Microsoft.Compute api-version to be pinned in contract spike",
+      "purpose": "OS/build, instance view, extension health/version when ARG projection is insufficient. No guest shell execution; no agent installation.",
+      "paging": { "mechanism": "nextLink for list forms", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Compute/virtualMachines/read", "Microsoft.Compute/virtualMachines/extensions/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "arm-arc-machine-get",
+      "title": "Arc server targeted enrichment",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.HybridCompute/machines/{machineName}",
+      "alternatePathTemplates": ["{pathTemplate}/extensions"],
+      "apiVersion": "UNPINNED",
+      "apiVersionStatus": "UNVERIFIED: Microsoft.HybridCompute api-version to be pinned in contract spike",
+      "purpose": "OS/build, agent connectivity status, extension health/version.",
+      "paging": { "mechanism": "nextLink for list forms", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.HybridCompute/machines/read", "Microsoft.HybridCompute/machines/extensions/read"], "dataActions": [], "scope": "machine resource", "verification": "documented-standard-read" }
+    },
+    {
+      "id": "authorization-permissions-rg",
+      "title": "Caller permissions at the configuration anchor resource group",
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{anchorSubscriptionId}/resourcegroups/{anchorResourceGroup}/providers/Microsoft.Authorization/permissions",
+      "apiVersion": "2022-04-01",
+      "apiVersionStatus": "verified (Microsoft Learn reference page 'Permissions - List For Resource Group' exists for rest-authorization-2022-04-01)",
+      "purpose": "Authorize shared-configuration editing for the current viewer using their delegated (OBO) token. Evaluate actions/notActions only; dataActions are not substitutes.",
+      "paging": { "mechanism": "nextLink", "rules": ["all pages must be retrieved; incomplete paging, error or ambiguity => deny (fail closed)"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Authorization/permissions/read"], "dataActions": [], "scope": "anchor resource group", "verification": "unverified-who-holds-by-default; caller can list own permissions per reference" },
+      "tokenType": "delegated-viewer-obo (never collector credentials)",
+      "notes": "Deny assignments, conditions and PIM semantics are NOT proven by this contract alone; see docs/rbac-configuration-design.md acceptance gate."
+    },
+    {
+      "id": "defender-assessments",
+      "title": "Defender for Cloud assessments (optional)",
+      "optional": true,
+      "method": "GET",
+      "host": "management.azure.com",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Security/assessments",
+      "apiVersion": "UNPINNED",
+      "apiVersionStatus": "UNVERIFIED: discover provider/API/license first; attribute separately from Policy and Machine Configuration",
+      "purpose": "Optional, separately attributed context only.",
+      "paging": { "mechanism": "nextLink", "rules": ["follow validated nextLink"] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": ["Microsoft.Security/assessments/read"], "dataActions": [], "scope": "subscription", "verification": "unverified-action-name" }
+    },
+    {
+      "id": "logs-ingestion",
+      "title": "Logs Ingestion API to dedicated DCR/custom tables (optional reporting sink)",
+      "optional": true,
+      "method": "POST",
+      "readOnlyQueryPost": false,
+      "host": "{dceOrDcrEndpoint}.ingest.monitor.azure.com",
+      "pathTemplate": "/dataCollectionRules/{dcrImmutableId}/streams/{streamName}",
+      "apiVersion": "2023-01-01",
+      "apiVersionStatus": "UNVERIFIED in this work package; confirm in I08",
+      "purpose": "Write reporting rows to a dedicated reporting Log Analytics sink. This is a reporting-sink write, NOT a source-resource mutation; requires explicit permission/cost/retention approval.",
+      "paging": { "mechanism": "n/a (batch upload, bounded payload size)", "rules": [] },
+      "classification": "reporting-sink-write",
+      "requiredRbac": { "actions": [], "dataActions": ["Microsoft.Insights/Telemetry/Write"], "scope": "dedicated DCR", "verification": "unverified-exact-role-test-required" }
+    },
+    {
+      "id": "logs-query",
+      "title": "Log Analytics query (optional workbook history mode)",
+      "optional": true,
+      "method": "POST",
+      "readOnlyQueryPost": true,
+      "host": "api.loganalytics.azure.com",
+      "pathTemplate": "/v1/workspaces/{workspaceId}/query",
+      "apiVersion": "v1",
+      "apiVersionStatus": "UNVERIFIED in this work package; confirm in I08",
+      "purpose": "Read reporting tables from the dedicated sink.",
+      "paging": { "mechanism": "none; bounded by query/time window", "rules": [] },
+      "classification": "read-only",
+      "requiredRbac": { "actions": [], "dataActions": ["Microsoft.OperationalInsights/workspaces/query/read"], "scope": "workspace/tables", "verification": "unverified-exact-role-test-required" }
+    }
+  ],
+  "denyList": {
+    "description": "Operations that must never be issued by the application or collector. Enforced by the method/host/path/version allowlist; deny entries document explicit intent and are used in negative tests.",
+    "rules": [
+      {
+        "category": "policy-evaluation-trigger",
+        "examples": [
+          { "method": "POST", "pathPattern": "/subscriptions/{s}/providers/Microsoft.PolicyInsights/policyStates/latest/triggerEvaluation" },
+          { "method": "POST", "pathPattern": "/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.PolicyInsights/policyStates/latest/triggerEvaluation" }
+        ]
+      },
+      {
+        "category": "remediation",
+        "examples": [
+          { "method": "PUT|DELETE|POST", "pathPattern": "**/providers/Microsoft.PolicyInsights/remediations/**" }
+        ]
+      },
+      {
+        "category": "policy-and-exemption-writes",
+        "examples": [
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/providers/Microsoft.Authorization/policyAssignments/**" },
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/providers/Microsoft.Authorization/policyDefinitions/**" },
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/providers/Microsoft.Authorization/policySetDefinitions/**" },
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/providers/Microsoft.Authorization/policyExemptions/**" }
+        ]
+      },
+      {
+        "category": "guest-assignment-mutation",
+        "examples": [
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/providers/Microsoft.GuestConfiguration/guestConfigurationAssignments/**" }
+        ]
+      },
+      {
+        "category": "extension-writes-and-agent-install",
+        "examples": [
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/virtualMachines/*/extensions/**" },
+          { "method": "PUT|PATCH|DELETE", "pathPattern": "**/Microsoft.HybridCompute/machines/*/extensions/**" }
+        ]
+      },
+      {
+        "category": "provider-registration",
+        "examples": [
+          { "method": "POST", "pathPattern": "/subscriptions/{s}/providers/{namespace}/register" }
+        ]
+      },
+      {
+        "category": "guest-code-execution",
+        "examples": [
+          { "method": "POST", "pathPattern": "**/runCommand" },
+          { "method": "POST", "pathPattern": "**/runCommands/**" }
+        ]
+      },
+      {
+        "category": "authorization-probe-writes",
+        "examples": [
+          { "method": "PUT|POST|DELETE", "pathPattern": "**/Microsoft.Resources/deployments/**", "reason": "Deployments are never executed as a permission probe; deployments/write is only a capability mapped from Microsoft.Authorization/permissions output." },
+          { "method": "PUT|DELETE", "pathPattern": "**/Microsoft.Authorization/roleAssignments/**" }
+        ]
+      },
+      {
+        "category": "generic-proxy",
+        "examples": [
+          { "method": "*", "pathPattern": "any host/path not listed in sources[]", "reason": "No arbitrary URL fetch (including package content URIs), no generic ARM proxy, no raw SQL endpoint." }
+        ]
+      }
+    ]
+  },
+  "readOnlyAssurance": {
+    "writes": "none against monitored resources",
+    "postUsage": ["arg-query", "policyinsights-querystates", "policyinsights-summarize", "logs-query"],
+    "sinkWrites": ["logs-ingestion (optional, dedicated reporting resources only, separately approved)"]
+  }
+}
