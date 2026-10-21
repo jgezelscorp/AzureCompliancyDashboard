@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173"]
     )
+    rate_limit_per_minute: int = Field(default=600, ge=0, le=100_000)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    export_purge_interval_minutes: int = Field(default=5, ge=1, le=1440)
     collection_interval_hours: int = Field(default=6, ge=1, le=168)
     collection_concurrency: int = Field(default=4, ge=1, le=16)
     collection_run_timeout_minutes: int = Field(default=180, ge=5)

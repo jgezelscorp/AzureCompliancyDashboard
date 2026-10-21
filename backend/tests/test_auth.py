@@ -20,6 +20,7 @@ from app.auth.permissions import (
     PERMISSIONS_API_VERSION,
     VIEWER_READ_ACTIONS,
     PermissionError_,
+    clear_permission_cache,
     has_action,
     is_action_allowed,
 )
@@ -223,6 +224,7 @@ def test_unsupported_shapes_raise(bad: list[dict[str, Any]]) -> None:
 def test_has_action_fails_closed() -> None:
     ok = FakeArm({ANCHOR_PATH: perm(["*"])})
     assert has_action(ok, "t", ANCHOR_SUB, "rg-anchor", CONFIG_EDIT_ACTION)
+    clear_permission_cache()  # a fresh grant may otherwise be served from the short-TTL cache
     err = FakeArm({ANCHOR_PATH: ArmError("boom")})
     assert not has_action(err, "t", ANCHOR_SUB, "rg-anchor", CONFIG_EDIT_ACTION)
     bad_shape = FakeArm({ANCHOR_PATH: [{"value": "nope"}]})
@@ -309,6 +311,7 @@ class FakeObo:
 def build(
     routes: dict[str, Any], obo_fail: bool = False
 ) -> tuple[TestClient, OnboardingStore, FakeArm]:
+    clear_permission_cache()
     app = create_app(Settings(environment="test"))
     store = OnboardingStore(make_session_factory()())
     arm = FakeArm(routes)
