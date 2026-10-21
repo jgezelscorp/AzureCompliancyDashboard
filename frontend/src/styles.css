@@ -189,12 +189,17 @@ nav a.active {
   gap: var(--space-3);
 }
 .user {
-  max-width: 14rem;
+  max-width: 22rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
   font-weight: 600;
+}
+
+.user-login {
+  font-weight: 400;
+  font-size: 0.85em;
 }
 
 /* Buttons and inputs */

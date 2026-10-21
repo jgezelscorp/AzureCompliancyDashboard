@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from app import __version__
@@ -29,6 +30,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.environment == "production")
+    # Outermost: large JSON/CSV bodies (>64 KiB) were truncated on the Container Apps internal hop.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     @app.get("/healthz", response_model=HealthResponse, response_model_by_alias=True)
     def healthz() -> HealthResponse:

@@ -17,10 +17,33 @@ import type {
 
 export class ApiError extends Error {
   constructor(
+    /** HTTP status; 0 = network failure (no response), -1 = response body incomplete/unreadable. */
     public readonly status: number,
     message: string,
   ) {
     super(message);
+  }
+}
+
+function isAbort(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
+async function request(fetchImpl: typeof fetch, url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetchImpl(url, init);
+  } catch (e) {
+    if (isAbort(e)) throw e;
+    throw new ApiError(0, `${init.method ?? "GET"} ${url} could not reach the service`);
+  }
+}
+
+async function readJson<T>(res: Response, what: string): Promise<T> {
+  try {
+    return (await res.json()) as T;
+  } catch (e) {
+    if (isAbort(e)) throw e;
+    throw new ApiError(-1, `${what} returned an incomplete or unreadable body`);
   }
 }
 
@@ -45,11 +68,11 @@ async function get<T>(
     const token = await tokenProvider();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetchImpl(`${BASE_URL}${path}`, { headers, signal: options.signal });
+  const res = await request(fetchImpl, `${BASE_URL}${path}`, { headers, signal: options.signal });
   if (!res.ok) {
     throw new ApiError(res.status, `GET ${path} failed with ${res.status}`);
   }
-  return (await res.json()) as T;
+  return readJson<T>(res, `GET ${path}`);
 }
 
 async function send<T>(
@@ -62,13 +85,13 @@ async function send<T>(
   const token = await tokenProvider();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetchImpl(`${BASE_URL}${path}`, {
+  const res = await request(fetchImpl, `${BASE_URL}${path}`, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new ApiError(res.status, `${method} ${path} failed with ${res.status}`);
-  return (await res.json()) as T;
+  return readJson<T>(res, `${method} ${path}`);
 }
 
 function query(params: Record<string, string | number | undefined>): string {
@@ -130,7 +153,7 @@ export function createMetricsApi(f?: typeof fetch): MetricsApi {
       const token = await tokenProvider();
       if (token) headers.Authorization = `Bearer ${token}`;
       const path = `/api/v1/exports/${encodeURIComponent(jobId)}/download`;
-      const res = await (f ?? fetch)(`${BASE_URL}${path}`, { headers });
+      const res = await request(f ?? fetch, `${BASE_URL}${path}`, { headers });
       if (!res.ok) throw new ApiError(res.status, `GET ${path} failed with ${res.status}`);
       const match = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
       return { blob: await res.blob(), filename: match?.[1] ?? "export" };

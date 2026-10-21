@@ -35,9 +35,18 @@ export function errorMessage(error: Error): string {
     if (error.status === 403) {
       return "Access denied: you have no authorized onboarded scope, or your Azure access could not be verified. Nothing is shown rather than guessing.";
     }
-    return `The service returned an error (${error.status}).`;
+    return errorText(error.status);
   }
   return "The service could not be reached.";
+}
+
+/** Names the failure class so a user can tell network problems from rejections and server faults. */
+export function errorText(status: number): string {
+  if (status === 0) return "Network error: the service could not be reached.";
+  if (status === -1) return "The service response was incomplete or unreadable (the connection was cut). Retry.";
+  if (status >= 500) return `Server error (${status}): the service failed to process the request.`;
+  if (status >= 400) return `The request was rejected (${status}).`;
+  return `Unexpected response (${status}).`;
 }
 
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {

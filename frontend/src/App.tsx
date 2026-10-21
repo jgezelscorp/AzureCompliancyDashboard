@@ -4,6 +4,7 @@ import { MetricsApiProvider, USE_MOCK_DATA } from "./api/context";
 import type { MetricsApi } from "./api/client";
 import {
   completeSignInIfCallback,
+  currentUserLogin,
   currentUserName,
   isSignedIn,
   registerSessionTokenProvider,
@@ -18,19 +19,23 @@ import { TechnicalView } from "./pages/TechnicalView";
 type AuthState =
   | { kind: "pending" }
   | { kind: "signedOut" }
-  | { kind: "signedIn"; name: string | null }
+  | { kind: "signedIn"; name: string | null; login: string | null }
   | { kind: "error"; error: Error };
 
 function useAuth(skip: boolean) {
   const [state, setState] = useState<AuthState>(
-    skip ? { kind: "signedIn", name: null } : { kind: "pending" },
+    skip ? { kind: "signedIn", name: null, login: null } : { kind: "pending" },
   );
   useEffect(() => {
     if (skip) return;
     registerSessionTokenProvider();
     completeSignInIfCallback().then(
       () =>
-        setState(isSignedIn() ? { kind: "signedIn", name: currentUserName() } : { kind: "signedOut" }),
+        setState(
+          isSignedIn()
+            ? { kind: "signedIn", name: currentUserName(), login: currentUserLogin() }
+            : { kind: "signedOut" },
+        ),
       (e: unknown) =>
         setState({ kind: "error", error: e instanceof Error ? e : new Error("Sign-in failed") }),
     );
@@ -110,9 +115,10 @@ export default function App({ api, skipAuth }: { api?: MetricsApi; skipAuth?: bo
             {!skip && state.kind === "signedIn" && (
               <>
                 {state.name && (
-                  <span className="user" title={state.name}>
+                  <span className="user" title={state.login ? `${state.name} (${state.login})` : state.name}>
                     <span className="sr-only">Signed in as </span>
                     {state.name}
+                    {state.login && <span className="user-login"> {state.login}</span>}
                   </span>
                 )}
                 <button type="button" className="btn" onClick={logout}>

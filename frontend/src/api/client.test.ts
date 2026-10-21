@@ -30,4 +30,18 @@ describe("metrics api client", () => {
     await expect(api.latest()).rejects.toMatchObject({ status: 403 });
     await expect(api.latest()).rejects.toBeInstanceOf(ApiError);
   });
+
+  it("classifies network failures (status 0) and truncated bodies (status -1)", async () => {
+    setTokenProvider(async () => null);
+    const down = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(createMetricsApi(down as unknown as typeof fetch).latest()).rejects.toMatchObject({
+      status: 0,
+    });
+    const cut = vi.fn(async () => new Response('{"checks": [', { status: 200 }));
+    await expect(createMetricsApi(cut as unknown as typeof fetch).latest()).rejects.toMatchObject({
+      status: -1,
+    });
+  });
 });
