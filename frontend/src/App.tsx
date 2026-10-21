@@ -13,7 +13,10 @@ import {
 } from "./auth/session";
 import { ErrorState, Loading } from "./components/common";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { PolicyApiProvider } from "./api/policyContext";
+import type { PolicyApi } from "./api/policyClient";
 import { CisoView } from "./pages/CisoView";
+import { PolicyOverviewPage } from "./pages/PolicyOverviewPage";
 import { TechnicalView } from "./pages/TechnicalView";
 
 type AuthState =
@@ -70,7 +73,7 @@ function Landing({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-export default function App({ api, skipAuth }: { api?: MetricsApi; skipAuth?: boolean }) {
+export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; policyApi?: PolicyApi; skipAuth?: boolean }) {
   const skip = skipAuth ?? (USE_MOCK_DATA || api !== undefined);
   const { state, login, logout } = useAuth(skip);
   const signedIn = state.kind === "signedIn";
@@ -82,12 +85,15 @@ export default function App({ api, skipAuth }: { api?: MetricsApi; skipAuth?: bo
   else
     body = (
       <MetricsApiProvider api={api}>
+       <PolicyApiProvider api={policyApi}>
         <Routes>
-          <Route path="/" element={<Navigate to="/technical" replace />} />
+          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route path="/overview" element={<PolicyOverviewPage />} />
           <Route path="/technical" element={<TechnicalView />} />
           <Route path="/ciso" element={<CisoView />} />
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
+       </PolicyApiProvider>
       </MetricsApiProvider>
     );
 
@@ -106,6 +112,7 @@ export default function App({ api, skipAuth }: { api?: MetricsApi; skipAuth?: bo
           </h1>
           {signedIn && (
             <nav aria-label="Primary">
+              <NavLink to="/overview">Overview</NavLink>
               <NavLink to="/technical">Technical</NavLink>
               <NavLink to="/ciso">CISO</NavLink>
             </nav>
