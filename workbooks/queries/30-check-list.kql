@@ -1,0 +1,18 @@
+// @id check-list
+// @tab checks
+// @title Check results (filter by family; select a row for reasons and affected machines)
+// @export family=Family
+// @export checkKey=CheckKey
+// @note One row per unique check key and family across Fresh reports. Check status is per machine; machinesFailing counts machines, not checks.
+// @note Expected/actual values have no universal field in the guest configuration report contract. They appear only when a package supplies them inside reasons; absent means 'not supplied', never zero or false.
+// @note ARG returns the latest report only and may omit report properties; verify with report GET for a selected machine (see docs/workbook.md).
+// @nodata No Fresh reports with checks in scope.
+//#include machines
+//#include assignments
+//#include evidence
+//#include checks
+freshChecks
+| where '{Family}' == '*' or family == '{Family}'
+| summarize machinesTested = dcount(machineId), machinesFailing = dcountif(machineId, checkStatus == 'NonCompliant'), reasonsReported = sum(reasonCount), category = take_any(category) by family, checkKey
+| extend failingPercent = iff(machinesTested == 0, real(null), round(100.0 * machinesFailing / machinesTested, 2))
+| order by machinesFailing desc, checkKey asc

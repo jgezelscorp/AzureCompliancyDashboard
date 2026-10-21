@@ -1,0 +1,19 @@
+// @id base-compare
+// @tab baselines
+// @title Baseline families side by side (AzureWindowsBaseline vs native CISWindowsSecurityBaseline)
+// @note The two families are distinct packages and are never merged. Side-by-side display does not imply equivalence; Azure baseline evidence is never CIS evidence.
+// @note Native CIS is a preview Machine Configuration offering with unverified applicability (gate G-APP); a missing CIS assignment is not unsupported, not compliant and not a failed control.
+// @note Each metric keeps its own numerator and denominator: checks are Fresh-report unique checks; machines are all in-scope machines x family.
+// @note This is an Azure Policy / Machine Configuration report view. It is not a CIS certification or attestation of any kind.
+// @nodata No machines in scope.
+//#include machines
+//#include assignments
+//#include evidence
+//#include checks
+let checkCounts = freshChecks
+    | summarize checksTotal = count(), checksCompliant = countif(checkStatus == 'Compliant') by family;
+evidence
+| summarize machinesInScope = count(), eligible = countif(eligibility == 'Eligible'), withAssignment = countif(quality != 'MissingAssignment' and quality != 'UnknownApplicability'), freshReports = countif(quality == 'Fresh'), staleReports = countif(quality == 'Stale'), unknownAgeReports = countif(quality == 'UnknownAge'), noReport = countif(quality == 'NoReport'), unknownApplicability = countif(quality == 'UnknownApplicability'), greenMachines = countif(green) by family
+| join kind=leftouter checkCounts on family
+| project family, machinesInScope, eligible, withAssignment, freshReports, staleReports, unknownAgeReports, noReport, unknownApplicability, greenMachines, checksCompliant = coalesce(checksCompliant, 0), checksTotal = coalesce(checksTotal, 0)
+| order by family asc

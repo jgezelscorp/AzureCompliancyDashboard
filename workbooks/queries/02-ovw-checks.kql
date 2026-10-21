@@ -1,0 +1,23 @@
+// @id ovw-checks
+// @tab overview
+// @title Check pass rate (unique checks, latest Fresh report per machine and family)
+// @note Source: guestconfigurationresources assignments; checks are the unique properties.latestAssignmentReport.resources[].resourceId per report.
+// @note percent = unique checks Compliant / unique checks total. Reasons are never counted as checks.
+// @note Only reports with endTime within 24h of now() are included. Stale and unknown-age reports are excluded (reportsExcludedAsNotFresh) and are never treated as passing.
+// @note A duplicate check key within one report keeps the worst status (matches the app normalizer).
+// @note ARG exposes the latest report only; it is not a guarantee of full report content. Compare with the report GET for a selected machine.
+// @nodata No Fresh report with checks in scope.
+//#include machines
+//#include assignments
+//#include evidence
+//#include checks
+let counts = freshChecks
+    | summarize total = count(), passed = countif(checkStatus == 'Compliant') by family;
+let excluded = evidence
+    | summarize reportsExcludedAsNotFresh = countif(quality in ('Stale', 'UnknownAge')) by family;
+excluded
+| join kind=leftouter counts on family
+| extend total = coalesce(total, 0), passed = coalesce(passed, 0)
+| extend percent = iff(total == 0, real(null), round(100.0 * passed / total, 2))
+| project family, percent, passed, failed = total - passed, total, reportsExcludedAsNotFresh
+| order by family asc

@@ -1,0 +1,14 @@
+// @id ovw-quality
+// @tab overview
+// @title Evidence quality (stale / no data / unknown are never green)
+// @viz barchart+table
+// @note Evidence quality is separate from the reported state. Only quality == Fresh with reportedState == Compliant is green.
+// @note Counts machines x family over ALL machines in scope (including NotEligible and Unknown eligibility), so totals differ from the coverage denominator.
+// @note ARG does not expose Unsupported, AccessDenied, ProviderUnavailable, Partial or CollectionFailure; those qualities need collector (I05/I08) evidence.
+// @nodata No machines in scope.
+//#include machines
+//#include assignments
+//#include evidence
+evidence
+| summarize machinesCount = count(), green = countif(green) by family, quality
+| order by family asc, quality asc

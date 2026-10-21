@@ -1,0 +1,20 @@
+// @id ovw-coverage
+// @tab overview
+// @title Coverage (Windows-eligible machines with assignment / usable report / fresh report)
+// @note Eligible = Windows machines (Azure VM osDisk.osType or Arc properties.osType). Linux is NotEligible. Missing OS evidence is Unknown and never counted as covered or excluded.
+// @note assigned = eligible machines with a guest configuration assignment for the family; usableReport = Fresh, Stale or UnknownAge report; freshReport = report endTime within 24h.
+// @note Percentages use eligible as the denominator. Inventory counts are not eligibility and not assessment coverage.
+// @note Native CIS applicability is unverified (gate G-APP): a missing CIS assignment is 'assessment unavailable', not a failure and not compliance.
+// @nodata No Windows-eligible machines in scope.
+//#include machines
+//#include assignments
+//#include evidence
+evidence
+| where eligibility == 'Eligible'
+| summarize eligible = count(), assigned = countif(quality != 'MissingAssignment'), usableReport = countif(quality in ('Fresh', 'Stale', 'UnknownAge')), freshReport = countif(quality == 'Fresh') by family
+| extend unknownEligibility = toscalar(machines | where eligibility == 'Unknown' | count)
+| extend assignmentPercent = iff(eligible == 0, real(null), round(100.0 * assigned / eligible, 2))
+| extend usableReportPercent = iff(eligible == 0, real(null), round(100.0 * usableReport / eligible, 2))
+| extend freshReportPercent = iff(eligible == 0, real(null), round(100.0 * freshReport / eligible, 2))
+| project family, eligible, unknownEligibility, assigned, assignmentPercent, usableReport, usableReportPercent, freshReport, freshReportPercent
+| order by family asc

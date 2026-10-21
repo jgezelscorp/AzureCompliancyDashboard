@@ -1,0 +1,15 @@
+// @id machine-checks
+// @tab machines
+// @title Checks of the selected machine and family
+// @note Requires a machine row selected above. Shows the latest report only when it is Fresh; a Stale, unknown-age or missing report is explained by the evidence quality above, never rendered as passing.
+// @note Checks are unique resourceId values; reasonCount is not a check count.
+// @nodata Select a machine above, or the machine has no Fresh report.
+//#include machines
+//#include assignments
+//#include evidence
+//#include checks
+freshChecks
+| where machineId == tolower('{MachineId}')
+| where '{Family}' == '*' or family == '{Family}'
+| project family, category, checkKey, checkStatus, reasonCount
+| order by checkStatus desc, category asc, checkKey asc
