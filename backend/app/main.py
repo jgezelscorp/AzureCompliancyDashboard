@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.api.metrics import router as metrics_router
 from app.api.v1 import router as v1_router
 from app.api.v1_auth import router as auth_router
 from app.config import Settings, get_settings
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(v1_router)
     app.include_router(auth_router)
+    app.include_router(metrics_router)
     return app
 
 
