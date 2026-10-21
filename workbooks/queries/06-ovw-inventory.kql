@@ -1,0 +1,10 @@
+// @id ovw-inventory
+// @tab overview
+// @title Machine inventory (Azure VM vs Arc) - inventory is not coverage
+// @note Source: resources. Azure VMs microsoft.compute/virtualmachines; Arc servers microsoft.hybridcompute/machines (by type, not name or tag).
+// @note ARG indexes supported properties only; missing osType shows as Unknown and stays visible. Inventory counts are not Windows eligibility and not assessment coverage.
+// @nodata No Azure VMs or Arc machines in scope.
+//#include machines
+machines
+| summarize machinesCount = count() by kind, osType = iff(osType == '', 'unknown', osType), eligibility
+| order by kind asc, eligibility asc

@@ -1,0 +1,15 @@
+// @id ovw-policy
+// @tab overview
+// @title Azure Policy compliance % (resource x assignment states, per baseline family)
+// @note Source: policyresources / microsoft.policyinsights/policystates (latest indexed state, not history).
+// @note percent = compliant / (compliant + nonCompliant). Exempt and every other state are excluded from the denominator and shown as separate counts.
+// @note Family is derived from the policy definition GUID parameters (CisDefinitionId, AzureBaselineDefinitionId); 'Other' is every other policy and is NOT a baseline family.
+// @note This is NOT the check pass rate and NOT coverage. A machine with no policy state has no row here.
+// @nodata No policy state rows in scope (no data is not compliance).
+//#include policy
+policyRows
+| summarize compliant = countif(state == 'Compliant'), nonCompliant = countif(state == 'NonCompliant'), exempt = countif(state == 'Exempt'), other = countif(state !in ('Compliant', 'NonCompliant', 'Exempt')) by family
+| extend denominator = compliant + nonCompliant
+| extend percent = iff(denominator == 0, real(null), round(100.0 * compliant / denominator, 2))
+| project family, percent, compliant, nonCompliant, denominator, exempt, other
+| order by family asc

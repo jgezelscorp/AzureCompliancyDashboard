@@ -45,3 +45,6 @@ npm run dev
 
 **Fixtures**: `pip install jsonschema` then `python scripts/validate_fixtures.py`.
 
+**Workbook** (`workbooks/`): see `docs/workbook.md`. `python scripts/validate_workbook.py --bicep` and `pytest tests/workbook`.
+
+

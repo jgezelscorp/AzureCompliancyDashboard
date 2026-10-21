@@ -1,0 +1,21 @@
+// @id ovw-age
+// @tab overview
+// @title Evidence age distribution (live mode has no history; this is not a trend)
+// @viz barchart+table
+// @note ARG returns only the latest report per assignment and latest policy state, so a true posture trend is unavailable in live mode.
+// @note The age buckets show how current the latest evidence is. Historical trend requires stored snapshots (enhanced mode, I08, or the app).
+// @note Age = now() - latestAssignmentReport.endTime. Machines without a report endTime are in 'No report time'.
+// @nodata No machine reports in scope.
+//#include machines
+//#include assignments
+//#include evidence
+evidence
+| where hasReport == true
+| extend ageBucket = case(
+    isnull(ageSeconds), '99 No report time',
+    ageSeconds <= 86400, '1 Fresh (<=24h)',
+    ageSeconds <= 172800, '2 Stale 24-48h',
+    ageSeconds <= 604800, '3 Stale 2-7d',
+    '4 Stale >7d')
+| summarize machinesCount = count() by family, ageBucket
+| order by family asc, ageBucket asc

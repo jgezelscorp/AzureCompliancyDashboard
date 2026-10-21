@@ -69,8 +69,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Validate Bicep and workbook JSON
         run: |
           shopt -s globstar nullglob
           for f in infra/bicep/**/*.bicep; do az bicep build --file "$f" --stdout > /dev/null; done
           for f in workbooks/**/*.json; do python -c "import json,sys; json.load(open(sys.argv[1]))" "$f"; done
+      - name: Validate workbook structure, KQL sanity and Bicep template
+        run: |
+          pip install jsonschema pytest
+          python scripts/validate_workbook.py --bicep
+      - name: Workbook KQL-logic parity with metrics reference
+        run: pytest tests/workbook -q

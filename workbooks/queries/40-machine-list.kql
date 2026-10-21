@@ -1,0 +1,17 @@
+// @id machine-list
+// @tab machines
+// @title Machines (select a row for its checks)
+// @export machineId=MachineId
+// @export family=Family
+// @note One row per machine x baseline family. green requires quality == Fresh AND reportedState == Compliant; every other row shows the evidence-quality reason.
+// @note machineId is the lower-cased full ARM ID, so duplicate machine names in different subscriptions or resource groups stay distinct.
+// @note Arc vs Azure VM is decided by resource type, never by name or tag.
+// @nodata No machines in scope.
+//#include machines
+//#include assignments
+//#include evidence
+evidence
+| where '{Family}' == '*' or family == '{Family}'
+| extend reportAgeHours = round(ageSeconds / 3600.0, 1)
+| project machineName, kind, resourceGroup, subscriptionId, osType, eligibility, family, quality, reportedState, green, reportEnd, reportAgeHours, gcVersion, machineId
+| order by green asc, quality asc, machineName asc
