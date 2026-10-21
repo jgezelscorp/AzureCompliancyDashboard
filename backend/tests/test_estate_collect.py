@@ -17,7 +17,10 @@ from tests.test_collector_run import SUB, make_runner
 
 DEF_ID = "/providers/Microsoft.Authorization/policyDefinitions/synth-def-1"
 ASSIGN_ID = f"/subscriptions/{SUB}/providers/Microsoft.Authorization/policyAssignments/synth-a"
-STORAGE = f"/subscriptions/{SUB}/resourcegroups/rg-synthetic/providers/microsoft.storage/storageaccounts/stsynth"
+STORAGE = (
+    f"/subscriptions/{SUB}/resourcegroups/rg-synthetic"
+    "/providers/microsoft.storage/storageaccounts/stsynth"
+)
 
 
 def estate_bundle() -> dict[str, Any]:
@@ -93,7 +96,8 @@ def test_collector_persists_estate_tables_and_snapshot() -> None:
         assert row.state_category is None  # the literal "tbd" is not a category
         assert s.scalars(select(PolicyAssignmentRow)).one().display_name == "Synthetic assignment"
         assert s.scalars(select(PolicyExemptionRow)).one().category == "Waiver"
-        assert s.scalars(select(PolicyDefinitionRow).where(PolicyDefinitionRow.severity.is_not(None))).one().severity == "High"
+        with_sev = select(PolicyDefinitionRow).where(PolicyDefinitionRow.severity.is_not(None))
+        assert s.scalars(with_sev).one().severity == "High"
         snap = s.scalars(select(EstateSnapshotRow)).one()
         assert snap.metrics["headline"]["nonCompliant"] >= 1
         assert "hunter2" not in str(s.scalars(select(PolicyAssignmentRow)).one().parameters)
@@ -121,5 +125,3 @@ def test_unavailable_defender_and_definitions_do_not_fail_run() -> None:
     runner, _fake, _factory = make_runner(bundle)
     result = runner.run_once()
     assert result is not None and result.status == "succeeded", result
-
-
