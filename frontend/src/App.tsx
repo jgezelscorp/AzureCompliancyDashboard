@@ -17,6 +17,9 @@ import { PolicyApiProvider } from "./api/policyContext";
 import type { PolicyApi } from "./api/policyClient";
 import { CisoView } from "./pages/CisoView";
 import { PolicyOverviewPage } from "./pages/PolicyOverviewPage";
+import { ExplorerPage } from "./pages/ExplorerPage";
+import { ResourcePage } from "./pages/ResourcePage";
+import { MachinePage } from "./pages/MachinePage";
 import { TechnicalView } from "./pages/TechnicalView";
 
 type AuthState =
@@ -89,6 +92,9 @@ export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; po
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<PolicyOverviewPage />} />
+          <Route path="/explorer" element={<ExplorerPage />} />
+          <Route path="/resource" element={<ResourcePage />} />
+          <Route path="/machine" element={<MachinePage />} />
           <Route path="/technical" element={<TechnicalView />} />
           <Route path="/ciso" element={<CisoView />} />
           <Route path="*" element={<p>Page not found.</p>} />
@@ -113,6 +119,7 @@ export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; po
           {signedIn && (
             <nav aria-label="Primary">
               <NavLink to="/overview">Overview</NavLink>
+              <NavLink to="/explorer">Explorer</NavLink>
               <NavLink to="/technical">Technical</NavLink>
               <NavLink to="/ciso">CISO</NavLink>
             </nav>

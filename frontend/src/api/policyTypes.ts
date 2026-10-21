@@ -279,12 +279,45 @@ export interface MachineCoverage {
   labels?: string[];
 }
 
+export interface MachineFamilyDetail {
+  family: string;
+  assigned: boolean;
+  assignments: { name: string; version: string | null; complianceStatus: string | null; lastChecked: string | null }[];
+  reports: { reportId: string; complianceStatus: string | null; endTime: string; checks: number }[];
+  evidenceQuality: string | null;
+  reportedState: string | null;
+  checkPassRate: { passed: number; failed: number; total: number; percent: number | null };
+  categories: {
+    category: string;
+    checks?: number;
+    passed: number;
+    total: number;
+    percent: number | null;
+    categorySource?: string;
+  }[];
+  note: string | null;
+}
+
 export interface MachineDetail {
-  machine: Record<string, unknown>;
+  machine: {
+    machineId: string;
+    name: string;
+    kind: string;
+    subscriptionId: string;
+    resourceGroup: string | null;
+    location: string | null;
+    osName: string | null;
+    osBuild: string | null;
+    eligibility: string | null;
+    tags: Record<string, string>;
+  };
   snapshotAt: string | null;
-  families: Record<string, unknown>[];
-  policy: Record<string, unknown>;
-  history: Record<string, unknown>[];
+  families: MachineFamilyDetail[];
+  policy: {
+    tally: Tally;
+    states: { policy: string; initiative: string; state: string; effect: string; evaluatedAt: string }[];
+  };
+  history: { snapshotAt: string; family: string; evidenceQuality: string; reportedState: string | null; green: boolean }[];
   historyNote: string;
   labels: string[];
 }
