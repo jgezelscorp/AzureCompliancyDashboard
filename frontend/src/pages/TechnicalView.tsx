@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMetricsApi } from "../api/context";
 import type {
@@ -49,9 +50,38 @@ export function TechnicalView() {
     setParams(p);
   };
 
+  // One level up: check -> category list -> all categories. Escape does the same.
+  const goUp = () => {
+    if (check) update({ check: "" });
+    else if (category) update({ category: "" });
+  };
+  const goUpRef = useRef(goUp);
+  goUpRef.current = goUp;
+  const canGoUp = Boolean(category || check);
+  useEffect(() => {
+    if (!canGoUp) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "SELECT" ||
+          t.tagName === "TEXTAREA")
+      )
+        return;
+      goUpRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [canGoUp]);
+
   const overview = useAsync(
     async (signal) => {
-      const [latest, scopes] = await Promise.all([api.latest(signal), api.scopes(signal)]);
+      const [latest, scopes] = await Promise.all([
+        api.latest(signal),
+        api.scopes(signal),
+      ]);
       return { latest, scopes };
     },
     [api],
@@ -78,7 +108,9 @@ export function TechnicalView() {
   }
 
   const scopeRow = scopes.scopes.find((s) => s.subscriptionId === scope);
-  const familyMetrics: FamilyMetrics | undefined = latest.families.find((f) => f.family === family);
+  const familyMetrics: FamilyMetrics | undefined = latest.families.find(
+    (f) => f.family === family,
+  );
   const shown: FamilyMetrics | undefined =
     scope && scopeRow && familyMetrics
       ? {
@@ -97,8 +129,8 @@ export function TechnicalView() {
       </p>
       {latest.dataStale && (
         <p role="alert" className="state state-stale">
-          The latest collection is older than {latest.freshnessHours ?? 24} hours. Values are shown
-          as stale, never as healthy.
+          The latest collection is older than {latest.freshnessHours ?? 24}{" "}
+          hours. Values are shown as stale, never as healthy.
         </p>
       )}
 
@@ -107,7 +139,9 @@ export function TechnicalView() {
           Scope{" "}
           <select
             value={scope}
-            onChange={(e) => update({ scope: e.target.value, category: "", check: "" })}
+            onChange={(e) =>
+              update({ scope: e.target.value, category: "", check: "" })
+            }
           >
             <option value="">All authorized scopes</option>
             {scopes.scopes.map((s) => (
@@ -134,25 +168,38 @@ export function TechnicalView() {
       <nav aria-label="Drill-down path" className="crumbs">
         <ol>
           <li>
-            <button type="button" onClick={() => update({ scope: "", category: "", check: "" })}>
+            <button
+              type="button"
+              onClick={() => update({ scope: "", category: "", check: "" })}
+            >
               {scope ? "All scopes" : "All scopes (current)"}
             </button>
           </li>
           {scope && (
             <li>
-              <button type="button" onClick={() => update({ category: "", check: "" })}>
+              <button
+                type="button"
+                onClick={() => update({ category: "", check: "" })}
+              >
                 Scope {scope.slice(0, 8)}
               </button>
             </li>
           )}
           <li>
-            <button type="button" onClick={() => update({ category: "", check: "" })}>
+            <button
+              type="button"
+              onClick={() => update({ category: "", check: "" })}
+            >
               {FAMILY_LABEL[family]}
             </button>
           </li>
           {category && (
             <li>
-              <button type="button" onClick={() => update({ check: "" })}>
+              <button
+                type="button"
+                aria-current={check ? undefined : "page"}
+                onClick={() => update({ check: "" })}
+              >
                 {category}
               </button>
             </li>
@@ -199,6 +246,13 @@ export function TechnicalView() {
           <MachineTable family={family} scope={scope} />
         </>
       )}
+      {canGoUp && (
+        <p>
+          <button type="button" onClick={goUp}>
+            {check ? `← Checks in ${category}` : "← All categories"}
+          </button>
+        </p>
+      )}
       {category && !check && (
         <CheckTable
           family={family}
@@ -207,7 +261,9 @@ export function TechnicalView() {
           onOpen={(c) => update({ check: c })}
         />
       )}
-      {category && check && <CheckMachineTable family={family} checkKey={check} scope={scope} />}
+      {category && check && (
+        <CheckMachineTable family={family} checkKey={check} scope={scope} />
+      )}
     </section>
   );
 }
@@ -219,7 +275,9 @@ function HistorySection({ family }: { family: MetricFamily }) {
     <section aria-labelledby="hist-h">
       <h3 id="hist-h">Trend</h3>
       {state.status === "loading" && <Loading what="history" />}
-      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "error" && (
+        <ErrorState error={state.error} onRetry={state.reload} />
+      )}
       {state.status === "ready" && (
         <Trend
           series={seriesFrom(state.data.points, state.data.aggregatesIncluded)}
@@ -244,18 +302,21 @@ function CategoryTable(props: {
     <section aria-labelledby="cat-h">
       <h3 id="cat-h">Categories</h3>
       {state.status === "loading" && <Loading what="categories" />}
-      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "error" && (
+        <ErrorState error={state.error} onRetry={state.reload} />
+      )}
       {state.status === "ready" &&
         (state.data.categories.length === 0 ? (
           <Empty>
-            No check results from fresh reports for this baseline and scope. Stale or missing
-            reports are not counted as passing.
+            No check results from fresh reports for this baseline and scope.
+            Stale or missing reports are not counted as passing.
           </Empty>
         ) : (
           <>
             <p className="detail">
-              Categories not provided by the source report are grouped by app heuristic rules (see
-              provenance). They are not benchmark or certification mappings.
+              Categories not provided by the source report are grouped by app
+              heuristic rules (see provenance). They are not benchmark or
+              certification mappings.
             </p>
             <table>
               <caption className="sr-only">Check results by category</caption>
@@ -269,11 +330,17 @@ function CategoryTable(props: {
               </thead>
               <tbody>
                 {state.data.categories.map((c: CategoryRow) => {
-                  const prov = categoryProvenance(c.categorySource, c.categoryRuleVersion);
+                  const prov = categoryProvenance(
+                    c.categorySource,
+                    c.categoryRuleVersion,
+                  );
                   return (
                     <tr key={c.category}>
                       <th scope="row">
-                        <button type="button" onClick={() => props.onOpen(c.category)}>
+                        <button
+                          type="button"
+                          onClick={() => props.onOpen(c.category)}
+                        >
                           {c.category}
                         </button>
                       </th>
@@ -305,16 +372,37 @@ function CheckTable(props: {
   onOpen: (checkKey: string) => void;
 }) {
   const api = useMetricsApi();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+    window.scrollTo?.(0, 0);
+  }, [props.category]);
   const state = useAsync(
-    (s) => api.checks(props.family, props.category, props.scope || undefined, s),
+    (s) =>
+      api.checks(props.family, props.category, props.scope || undefined, s),
     [api, props.family, props.category, props.scope],
   );
+  const mismatch =
+    state.status === "ready" &&
+    state.data.category !== undefined &&
+    state.data.category !== props.category;
   return (
     <section aria-labelledby="chk-h">
-      <h3 id="chk-h">Checks in {props.category}</h3>
+      <h3 id="chk-h" tabIndex={-1} ref={headingRef}>
+        Checks in {props.category}
+      </h3>
       {state.status === "loading" && <Loading what="checks" />}
-      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "error" && (
+        <ErrorState error={state.error} onRetry={state.reload} />
+      )}
+      {mismatch && (
+        <p role="alert" className="state state-error">
+          The server answered for a different category than the one selected, so
+          no list is shown. Reload or choose the category again.
+        </p>
+      )}
       {state.status === "ready" &&
+        !mismatch &&
         (state.data.checks.length === 0 ? (
           <Empty>No checks in this category.</Empty>
         ) : (
@@ -331,15 +419,28 @@ function CheckTable(props: {
               {state.data.checks.map((c: CheckRow) => (
                 <tr key={c.checkKey}>
                   <th scope="row">
-                    <button type="button" onClick={() => props.onOpen(c.checkKey)}>
+                    <button
+                      type="button"
+                      onClick={() => props.onOpen(c.checkKey)}
+                    >
                       {c.name}
                     </button>
                     <div className="detail">
                       {c.benchmarkControlId ?? c.checkKey} ·{" "}
                       <span
-                        title={categoryProvenance(c.categorySource, c.categoryRuleVersion).hint}
+                        title={
+                          categoryProvenance(
+                            c.categorySource,
+                            c.categoryRuleVersion,
+                          ).hint
+                        }
                       >
-                        {categoryProvenance(c.categorySource, c.categoryRuleVersion).label}
+                        {
+                          categoryProvenance(
+                            c.categorySource,
+                            c.categoryRuleVersion,
+                          ).label
+                        }
                       </span>
                     </div>
                   </th>
@@ -354,23 +455,37 @@ function CheckTable(props: {
   );
 }
 
-function CheckMachineTable(props: { family: MetricFamily; checkKey: string; scope: string }) {
+function CheckMachineTable(props: {
+  family: MetricFamily;
+  checkKey: string;
+  scope: string;
+}) {
   const api = useMetricsApi();
   const state = useAsync(
-    (s) => api.checkMachines(props.family, props.checkKey, props.scope || undefined, s),
+    (s) =>
+      api.checkMachines(
+        props.family,
+        props.checkKey,
+        props.scope || undefined,
+        s,
+      ),
     [api, props.family, props.checkKey, props.scope],
   );
   return (
     <section aria-labelledby="cm-h">
       <h3 id="cm-h">Machines for {props.checkKey}</h3>
       {state.status === "loading" && <Loading what="machines" />}
-      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "error" && (
+        <ErrorState error={state.error} onRetry={state.reload} />
+      )}
       {state.status === "ready" &&
         (state.data.machines.length === 0 ? (
           <Empty>No machine has a fresh result for this check.</Empty>
         ) : (
           <table>
-            <caption className="sr-only">Machines and their result for this check</caption>
+            <caption className="sr-only">
+              Machines and their result for this check
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Machine</th>
@@ -411,18 +526,29 @@ function CheckMachineTable(props: { family: MetricFamily; checkKey: string; scop
   );
 }
 
-function MachineTable({ family, scope }: { family: MetricFamily; scope: string }) {
+function MachineTable({
+  family,
+  scope,
+}: {
+  family: MetricFamily;
+  scope: string;
+}) {
   const api = useMetricsApi();
   const state = useAsync((s) => api.machines(family, s), [api, family]);
   return (
     <section aria-labelledby="mach-h">
       <h3 id="mach-h">Machines</h3>
       {state.status === "loading" && <Loading what="machines" />}
-      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "error" && (
+        <ErrorState error={state.error} onRetry={state.reload} />
+      )}
       {state.status === "ready" &&
         (() => {
-          const rows = state.data.machines.filter((m) => !scope || m.subscriptionId === scope);
-          if (rows.length === 0) return <Empty>No machines in this scope.</Empty>;
+          const rows = state.data.machines.filter(
+            (m) => !scope || m.subscriptionId === scope,
+          );
+          if (rows.length === 0)
+            return <Empty>No machines in this scope.</Empty>;
           return (
             <table>
               <caption className="sr-only">Machine evidence status</caption>

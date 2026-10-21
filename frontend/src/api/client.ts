@@ -118,7 +118,7 @@ export interface MetricsApi {
     category: string,
     subscriptionId?: string,
     signal?: AbortSignal,
-  ): Promise<{ snapshotAt: string | null; checks: CheckRow[] }>;
+  ): Promise<{ snapshotAt: string | null; category?: string; checks: CheckRow[] }>;
   checkMachines(
     family: MetricFamily,
     checkKey: string,
