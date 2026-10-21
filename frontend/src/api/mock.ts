@@ -4,6 +4,7 @@ import type {
   CategoryRow,
   CheckMachineRow,
   CheckRow,
+  ExportJob,
   ComplianceState,
   EvidenceQuality,
   FamilyMetrics,
@@ -203,6 +204,7 @@ function history(family: MetricFamily): HistoryPoint[] {
 }
 
 export function createMockApi(): MetricsApi {
+  const jobs: ExportJob[] = [];
   const resolve = <T,>(v: T) => Promise.resolve(v);
   return {
     latest: () =>
@@ -300,6 +302,34 @@ export function createMockApi(): MetricsApi {
         }));
       return resolve({ snapshotAt: SNAPSHOT_AT, machines });
     },
+    createExport: (request) => {
+      const now = new Date();
+      const job: ExportJob = {
+        jobId: `00000000-0000-0000-0000-${String(jobs.length + 1).padStart(12, "0")}`,
+        kind:
+          request.format === "pdf"
+            ? `pdf-${request.template ?? "technical"}`
+            : `csv-${request.dataset ?? "checks"}`,
+        family: request.family,
+        subscriptionId: request.subscriptionId ?? null,
+        status: "completed",
+        snapshotAt: SNAPSHOT_AT,
+        createdAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(),
+        rowCount: 0,
+        truncated: false,
+        filename: `synthetic-${jobs.length + 1}.${request.format}`,
+        scopeCount: 2,
+      };
+      jobs.unshift(job);
+      return resolve(job);
+    },
+    listExports: () => resolve({ jobs: [...jobs] }),
+    downloadExport: (jobId) =>
+      resolve({
+        blob: new Blob(["Synthetic demo export. Not real evidence."], { type: "text/plain" }),
+        filename: jobs.find((j) => j.jobId === jobId)?.filename ?? "synthetic.txt",
+      }),
     runs: () =>
       resolve({
         runs: [

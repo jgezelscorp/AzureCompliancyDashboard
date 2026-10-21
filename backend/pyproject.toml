@@ -27,6 +27,7 @@ dev = [
   "ruff>=0.4",
   "mypy>=1.10",
   "jsonschema>=4.21",
+  "pypdf>=4",
 ]
 
 [tool.setuptools.packages.find]

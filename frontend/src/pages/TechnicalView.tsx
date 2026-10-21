@@ -9,6 +9,7 @@ import type {
   MetricFamily,
 } from "../api/types";
 import { Empty, ErrorState, Loading, ToneBadge } from "../components/common";
+import { ExportControls } from "../components/ExportControls";
 import { EvidenceNotice } from "../components/EvidenceNotice";
 import { FamilyMetricCards } from "../components/FamilyMetricCards";
 import { Trend, seriesFrom } from "../components/Trend";
@@ -165,6 +166,16 @@ export function TechnicalView() {
         <Empty>No metrics for this baseline.</Empty>
       )}
       <EvidenceNotice labels={latest.labels} family={family} />
+      <ExportControls
+        options={(() => {
+          const sub = scope ? { subscriptionId: scope } : {};
+          return [
+            { label: "Export checks CSV", request: { format: "csv", dataset: "checks", family, ...sub } },
+            { label: "Export machines CSV", request: { format: "csv", dataset: "machines", family, ...sub } },
+            { label: "Export technical PDF", request: { format: "pdf", template: "technical", family, ...sub } },
+          ];
+        })()}
+      />
       <HistorySection family={family} />
 
       {!category && (
