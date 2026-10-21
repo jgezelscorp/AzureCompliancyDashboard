@@ -197,6 +197,33 @@ def gen_empty_and_dual():
     write("dual-family-distinct.json", b)
 
 
+def gen_large_estate(count):
+    """Synthetic large estate (in memory only; never written). Deterministic mix per machine index."""
+    fam_a, fam_c = "AzureWindowsBaseline", "CISWindowsSecurityBaseline"
+    machines, assignments, reports, states = [], [], [], []
+    for i in range(count):
+        kind = "ArcMachine" if i % 3 == 0 else "AzureVM"
+        slot = i % 10
+        m = machine(f"{'arc' if kind == 'ArcMachine' else 'vm'}-load-{i:05d}", kind,
+                    "Unknown" if slot == 9 else "Eligible")
+        machines.append(m)
+        if slot == 7:
+            continue  # no assignment at all: must surface as missing evidence
+        fam = fam_a if slot % 2 == 0 else fam_c
+        age_hours = 60 if slot == 6 else 1  # stale beyond 24h
+        end = "2026-01-12T00:00:00Z" if age_hours == 60 else "2026-01-15T11:00:00Z"
+        status = "NonCompliant" if slot in (1, 2, 3) else "Compliant"
+        a = assignment(m, fam, status, end, fam)
+        assignments.append(a)
+        if slot == 8:
+            continue  # assignment without report
+        passing = 8 if status == "Compliant" else 3
+        reports.append(report(a, status, end, end, cis_checks(8, passing)))
+        states.append(policy_state(m, fam, status, end))
+    return bundle(f"Synthetic large estate of {count} machines for load testing.",
+                  machines, assignments, reports, states, [], [fam_a, fam_c])
+
+
 if __name__ == "__main__":
     gen_arc_baseline()
     gen_cis()

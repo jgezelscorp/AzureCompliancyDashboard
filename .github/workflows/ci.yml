@@ -47,7 +47,8 @@ jobs:
       - run: ruff check .
       - run: mypy .
       - run: pytest
-
+      - name: Large-estate load tests
+        run: pytest -m heavy
   frontend:
     runs-on: ubuntu-latest
     defaults:

@@ -57,3 +57,5 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not heavy'"
+markers = ["heavy: large-estate load tests (run explicitly with -m heavy)"]

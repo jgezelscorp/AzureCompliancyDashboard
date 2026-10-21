@@ -123,7 +123,7 @@ def evidence_fragment(machines, assignments, now):
                 quality = "Fresh"
             else:
                 quality = "Stale"
-            state = a["reportState"] if a and a["hasReport"] else ""
+            state = a["reportState"] if a and a["hasReport"] and quality != "UnknownApplicability" else ""
             rows.append({
                 **m, "family": family, "quality": quality, "reportedState": state,
                 "green": quality == "Fresh" and state == "Compliant",
