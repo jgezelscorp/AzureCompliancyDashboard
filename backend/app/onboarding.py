@@ -54,3 +54,22 @@ class OnboardingStore:
             select(OnboardedScopeRow).order_by(OnboardedScopeRow.subscription_id)
         )
         return [_scope(r) for r in rows]
+
+
+PLACEHOLDER_SUBSCRIPTION = "00000000-0000-0000-0000-000000000000"
+
+
+def seed_configured_scopes(session: Session, subscription_ids: list[str]) -> list[str]:
+    """Register operator-configured subscriptions (ACD_SUBSCRIPTION_IDS) as onboarded scopes.
+
+    Idempotent; existing registrations are untouched. Viewers still need Azure RBAC read access
+    to a scope before they see any of its data.
+    """
+    store = OnboardingStore(session)
+    seeded = []
+    for sid in subscription_ids:
+        if sid.lower() == PLACEHOLDER_SUBSCRIPTION:
+            continue
+        store.register(sid, "config")
+        seeded.append(sid.lower())
+    return seeded

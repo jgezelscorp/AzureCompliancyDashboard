@@ -49,3 +49,17 @@ def test_migration_0003_sql_generates(revision: str, capsys: pytest.CaptureFixtu
     command.upgrade(cfg, revision, sql=True)
     out = capsys.readouterr().out
     assert "onboarded_scopes" in out
+
+
+def test_seed_configured_scopes_is_idempotent_and_skips_placeholder() -> None:
+    from app.onboarding import seed_configured_scopes
+
+    sub = "11111111-1111-1111-1111-111111111111"
+    factory = make_session_factory()
+    with factory() as s:
+        OnboardingStore(s).register(sub, "oid-1")
+        assert seed_configured_scopes(s, [sub.upper(), SUB]) == [sub]
+        seed_configured_scopes(s, [sub])
+        scopes = OnboardingStore(s).list()
+        assert [r.subscription_id for r in scopes] == [sub]
+        assert scopes[0].registered_by == "oid-1"

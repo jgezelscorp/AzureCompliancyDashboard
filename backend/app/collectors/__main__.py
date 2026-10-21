@@ -14,6 +14,7 @@ from app.collectors.scheduler import CollectionScheduler
 from app.config import get_settings
 from app.database import get_engine
 from app.logging_config import configure_logging
+from app.onboarding import seed_configured_scopes
 from app.sink.service import build_sink
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,8 @@ def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     factory: sessionmaker[Session] = sessionmaker(get_engine(settings.database_url))
+    with factory() as session:
+        seed_configured_scopes(session, settings.subscription_ids)
     client = ArmClient(
         HttpxTransport(),
         AzureIdentityTokenProvider(),
