@@ -54,3 +54,6 @@ pgdata/
 *.log
 exports/
 .DS_Store
+
+*.egg-info/
+.ruff_cache/

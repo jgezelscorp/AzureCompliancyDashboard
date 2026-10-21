@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-acd}
+      POSTGRES_USER: ${POSTGRES_USER:-acd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ACD_ENVIRONMENT: ${ACD_ENVIRONMENT:-development}
+      ACD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-acd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-acd}
+      ACD_TENANT_ID: ${ACD_TENANT_ID:-00000000-0000-0000-0000-000000000000}
+      ACD_SUBSCRIPTION_IDS: ${ACD_SUBSCRIPTION_IDS:-}
+      ACD_FRESHNESS_HOURS: ${ACD_FRESHNESS_HOURS:-24}
+      ACD_RETENTION_MONTHS: ${ACD_RETENTION_MONTHS:-13}
+      ACD_CORS_ORIGINS: ${ACD_CORS_ORIGINS:-http://localhost:8080}
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  pgdata:
