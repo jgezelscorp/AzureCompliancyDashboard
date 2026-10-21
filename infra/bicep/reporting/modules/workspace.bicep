@@ -3,6 +3,7 @@ param workspaceName string
 param existingResourceGroup string
 param location string
 param retentionDays int
+param dailyQuotaGb int = -1
 
 resource created 'Microsoft.OperationalInsights/workspaces@2022-10-01' = if (create) {
   name: workspaceName
@@ -10,6 +11,7 @@ resource created 'Microsoft.OperationalInsights/workspaces@2022-10-01' = if (cre
   properties: {
     sku: { name: 'PerGB2018' }
     retentionInDays: retentionDays
+    workspaceCapping: { dailyQuotaGb: dailyQuotaGb }
   }
 }
 

@@ -15,10 +15,14 @@ param existingWorkspaceResourceGroup string = resourceGroup().name
 @description('Region for new resources. The DCR must be in the same region as the workspace.')
 param location string = resourceGroup().location
 
-@description('Interactive retention in days for every table. 397 days is the minimum that covers 13 months.')
-@minValue(397)
+@description('Interactive retention in days for every table. 397 days is the minimum that covers 13 months; 30 is the Log Analytics minimum and limits the History tab to about 30 days.')
+@minValue(30)
 @maxValue(4383)
 param retentionDays int = 400
+
+@description('Daily ingestion cap in GB for a NEW workspace (-1 = no cap). Ignored for an existing workspace.')
+@minValue(-1)
+param dailyQuotaGb int = -1
 
 @description('Name of the data collection rule.')
 param dcrName string = 'dcr-compliance-reporting'
@@ -42,6 +46,7 @@ module workspace 'modules/workspace.bicep' = {
     existingResourceGroup: existingWorkspaceResourceGroup
     location: location
     retentionDays: retentionDays
+    dailyQuotaGb: dailyQuotaGb
   }
 }
 
