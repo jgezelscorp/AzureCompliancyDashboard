@@ -19,8 +19,8 @@ function failing(status: number): MetricsApi {
 }
 
 describe("App", () => {
-  it("shows navigation and the Technical view by default", async () => {
-    renderAt("/", createMockApi());
+  it("shows navigation and the Technical view", async () => {
+    renderAt("/technical", createMockApi());
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Azure Compliancy Dashboard");
     expect(screen.getByRole("link", { name: "CISO" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: /technical/i })).toBeInTheDocument();

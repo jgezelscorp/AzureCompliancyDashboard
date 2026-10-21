@@ -58,7 +58,7 @@ export function setTokenProvider(provider: TokenProvider): void {
   tokenProvider = provider;
 }
 
-async function get<T>(
+export async function get<T>(
   path: string,
   fetchImpl: typeof fetch = fetch,
   options: { auth?: boolean; signal?: AbortSignal } = {},
