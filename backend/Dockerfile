@@ -5,7 +5,7 @@ WORKDIR /srv
 COPY pyproject.toml alembic.ini ./
 COPY app ./app
 COPY migrations ./migrations
-RUN pip install --no-cache-dir . \
+RUN pip install --no-cache-dir ".[azure]" \
     && useradd --system --uid 10001 --no-create-home appuser
 USER 10001
 EXPOSE 8000

@@ -46,7 +46,7 @@ Nothing has been created. A customer will need approvals for:
 
 - [ ] `az deployment group what-if` on every Bicep template (`infra/bicep/workbook`, `infra/bicep/reporting`, `infra/bicep/containerapps`); review output with the customer; nothing is applied without approval.
 - [ ] Deploy to a staging resource group first.
-- [ ] Container Apps template has no migration job: run `alembic upgrade head` as a separate step before starting the API and worker.
+- [ ] Run the Container Apps migration job (`az containerapp job start`) before starting or upgrading the API and worker.
 - [ ] Take a database backup before every upgrade ([operations.md](operations.md)).
 - [ ] Put WAF/edge rate limiting in front of ingress (in-process limiter is only a safety net).
 - [ ] Confirm collection ran, freshness shown, and the app output matches the workbook for the same scope.

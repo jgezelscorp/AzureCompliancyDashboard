@@ -29,9 +29,11 @@ No error text, token, tenant ID or credential is exported. Machine and resource-
 az deployment group what-if -g <rg> -f infra/bicep/reporting/main.bicep -p infra/bicep/reporting/main.example.bicepparam
 ```
 
-Review, then `create`. Parameters: `createWorkspace` (false references an existing workspace in `existingWorkspaceResourceGroup`), `retentionDays` (minimum 397 = 13 months, default 400, interactive Analytics plan so history stays queryable), `deployDataCollectionEndpoint` (false: a `Direct` DCR exposes its own ingestion endpoint; set true only if your design needs a DCE), `ingestionPrincipalObjectId` (optional Monitoring Metrics Publisher assignment on the DCR; leave empty to assign nothing). Outputs: `dcrImmutableId` and `ingestionEndpoint`.
+Review, then `create`. Parameters: `createWorkspace` (false references an existing workspace in `existingWorkspaceResourceGroup`), `retentionDays` (minimum 30, default 400 = 13 months plus margin; 397 is the smallest value that covers 13 months, interactive Analytics plan so history stays queryable), `dailyQuotaGb` (daily ingestion cap for a new workspace, -1 = none), `deployDataCollectionEndpoint` (false: a `Direct` DCR exposes its own ingestion endpoint; set true only if your design needs a DCE), `ingestionPrincipalObjectId` (optional Monitoring Metrics Publisher assignment on the DCR; leave empty to assign nothing). Outputs: `dcrImmutableId` and `ingestionEndpoint`.
 
 Separate the roles: the collector identity gets only ingestion on the DCR; viewers get **Log Analytics Reader** on the workspace (or table-level RBAC); deployers need rights to create the resources. Create and grant them yourself; this repository creates no app registrations.
+
+**Retention note:** the 13-month history goal needs `retentionDays` >= 397. A deployment that sets `retentionDays = 30` (for example to save cost) limits the workbook History tab to about the last 30 days regardless of the TimeRange parameter; the app's PostgreSQL history (`ACD_RETENTION_MONTHS`) is unaffected.
 
 Cost: ingestion and 400-day retention are billed by Log Analytics. A run writes roughly one report row per machine and family plus one row per check; use a workspace you are happy to bill for it.
 

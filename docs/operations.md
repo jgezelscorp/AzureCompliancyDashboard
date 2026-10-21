@@ -73,14 +73,20 @@ Notes: store dumps encrypted and off-host; they contain compliance evidence and 
 3. `GET /readyz` returns 200, `GET /api/v1/info` responds.
 4. Restore drill: restore last backup into a scratch database and run step 1-3.
 
-## Optional: Azure Container Apps
+## Azure Container Apps (consumption)
 
-`infra/bicep/containerapps/main.bicep` is a reference template (API, single worker, web, Log Analytics wiring; secrets as Container Apps secrets; probes on `/healthz` and `/readyz`). It is **not deployed by CI** and is validated only with `az bicep build`. Before real use:
+`infra/bicep/containerapps/main.bicep` deploys: user-assigned identities (`<prefix>-api-id`, `<prefix>-collector-id`), ACR Basic (admin user off, `AcrPull` for the identities), Key Vault (RBAC, holds `database-url` and `api-client-secret`; apps read them through Key Vault references), a VNet, PostgreSQL Flexible Server 16 Burstable with **private access only**, a Container Apps environment (workload-profiles, Consumption) logging to an existing Log Analytics workspace, a manual migration Job, an internal API app, one worker and the public web app (TLS, optional `webAllowedCidrs`). It is not deployed by CI; CI only runs `az bicep build`. Always `what-if` first.
 
-- Provide PostgreSQL separately (for example Flexible Server with private access and PITR backups) and run `alembic upgrade head` once per release as a Container Apps Job or pipeline step; the template has no migration step.
-- The shipped nginx config proxies to host `backend`; in Container Apps point it at the internal API FQDN or serve the SPA from a static host.
-- Grant the worker's managed identity the read roles listed in `contracts/permissions-manifest.json` on the monitored subscriptions (done by the operator, not this repo).
-- Put WAF/edge rate limiting in front of the public ingress.
+Two phases (`deployApps`):
+
+1. `az deployment group what-if|create -g <rg> -f infra/bicep/containerapps/main.bicep -p deployApps=false logAnalyticsWorkspaceName=<law> pgAdminPassword=<generated, alphanumeric>`.
+2. Build images: `az acr build -r <acr> -t acd-backend:<tag> backend` and `az acr build -r <acr> -t acd-frontend:<tag> --build-arg BACKEND_UPSTREAM=http://<prefix>-api frontend` (the web nginx proxies `/api` to the internal API app by name).
+3. Create the Entra app registrations, put the API client secret into Key Vault as `api-client-secret` (the OBO exchange needs a secret; it is never in the repo or logs), and rerun the deployment with `deployApps=true backendImage=... frontendImage=... tenantId=... subscriptionIds=... authApiClientId=... authSpaClientId=...`.
+4. Run the migration job: `az containerapp job start -g <rg> -n <prefix>-migrate`, check the execution succeeded, then verify `/healthz` and `/readyz`.
+5. Grant the collector identity (`collectorPrincipalId` output) read access with `infra/bicep/containerapps/rbac-subscription.bicep` (Reader; it already includes Policy Insights and guest configuration reads) and, if the history sink is used, Monitoring Metrics Publisher on the DCR (`ingestionPrincipalObjectId` of `infra/bicep/reporting`).
+
+Notes: the public web app is the only public endpoint; the in-process rate limiter is a safety net, put WAF/edge limits in front for production. The internal API ingress allows plain HTTP because it is reachable only inside the environment. PostgreSQL has PITR backups (7 days); see the backup section for logical dumps (run them from a job inside the VNet).
+
 
 ## Troubleshooting
 
