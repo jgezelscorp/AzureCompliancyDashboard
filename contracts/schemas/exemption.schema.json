@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/exemption.schema.json",
+  "title": "Azure Policy exemption",
+  "type": "object",
+  "required": ["exemptionId", "scope", "policyAssignmentId", "category"],
+  "properties": {
+    "exemptionId": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "policyAssignmentId": { "type": "string", "minLength": 1 },
+    "category": { "enum": ["Waiver", "Mitigated"] },
+    "expiresOn": { "$ref": "common.schema.json#/$defs/nullableTimestamp" },
+    "displayName": { "type": ["string", "null"] },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" }
+  },
+  "additionalProperties": false
+}

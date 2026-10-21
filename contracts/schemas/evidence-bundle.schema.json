@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/evidence-bundle.schema.json",
+  "title": "Evidence bundle (fixture / snapshot unit)",
+  "type": "object",
+  "required": ["schemaVersion", "snapshotAt", "machines", "assignments", "reports", "policyStates", "exemptions"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" },
+    "description": { "type": "string" },
+    "snapshotAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "machines": { "type": "array", "items": { "$ref": "machine.schema.json" } },
+    "assignments": { "type": "array", "items": { "$ref": "assignment.schema.json" } },
+    "reports": { "type": "array", "items": { "$ref": "report.schema.json" } },
+    "policyStates": { "type": "array", "items": { "$ref": "policy-state.schema.json" } },
+    "exemptions": { "type": "array", "items": { "$ref": "exemption.schema.json" } },
+    "expected": {
+      "type": "object",
+      "description": "Golden expected metric values for the fixture.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

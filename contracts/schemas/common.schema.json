@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/common.schema.json",
+  "title": "Shared definitions for normalized compliance evidence",
+  "$defs": {
+    "guid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "nullableTimestamp": { "oneOf": [ { "$ref": "#/$defs/timestamp" }, { "type": "null" } ] },
+    "baselineFamily": {
+      "description": "Distinct package families; never merged or treated as equivalent.",
+      "enum": ["AzureWindowsBaseline", "CISWindowsSecurityBaseline", "Other", "Unknown"]
+    },
+    "machineKind": { "enum": ["AzureVM", "ArcMachine"] },
+    "complianceState": {
+      "description": "Reported state only. Evidence quality is carried separately.",
+      "enum": ["Compliant", "NonCompliant", "Pending", "Unknown"]
+    },
+    "evidenceQuality": {
+      "description": "Evidence quality dimension. Anything other than Fresh must never render as green.",
+      "enum": [
+        "Fresh", "Stale", "UnknownAge", "MissingAssignment", "NoReport", "UnknownApplicability",
+        "Unsupported", "AccessDenied", "ProviderUnavailable", "Partial", "CollectionFailure", "OutOfScope"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "collectedAt"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "apiVersion": { "type": "string" },
+        "collectedAt": { "$ref": "#/$defs/timestamp" },
+        "synthetic": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "syntheticMarker": {
+      "description": "Present and true on every synthetic fixture; absent on real sanitized evidence.",
+      "const": true
+    }
+  }
+}

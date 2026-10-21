@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/machine.schema.json",
+  "title": "Machine (Azure VM or Arc-enabled server)",
+  "type": "object",
+  "required": ["machineId", "name", "kind", "subscriptionId", "resourceGroup", "osType", "eligibility"],
+  "properties": {
+    "machineId": { "type": "string", "minLength": 1, "description": "Normalized (lower-cased) ARM resource ID." },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "$ref": "common.schema.json#/$defs/machineKind" },
+    "subscriptionId": { "$ref": "common.schema.json#/$defs/guid" },
+    "resourceGroup": { "type": "string", "minLength": 1 },
+    "location": { "type": "string" },
+    "osType": { "enum": ["Windows", "Linux", "Unknown"] },
+    "osName": { "type": ["string", "null"] },
+    "osBuild": { "type": ["string", "null"] },
+    "eligibility": {
+      "enum": ["Eligible", "NotEligible", "Unknown"],
+      "description": "Unknown eligibility stays visible and is never counted as covered."
+    },
+    "tags": { "type": "object", "additionalProperties": { "type": "string" } },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" }
+  },
+  "additionalProperties": false
+}

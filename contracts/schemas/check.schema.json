@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/check.schema.json",
+  "title": "Check (guest configuration resource compliance)",
+  "type": "object",
+  "required": ["checkKey", "name", "complianceStatus", "reasons"],
+  "properties": {
+    "checkKey": { "type": "string", "minLength": 1, "description": "Stable unique key within a report; the unit counted by check pass rate." },
+    "name": { "type": "string", "minLength": 1 },
+    "complianceStatus": { "enum": ["Compliant", "NonCompliant"] },
+    "category": { "type": ["string", "null"] },
+    "severity": { "enum": ["Critical", "High", "Medium", "Low", "Informational", null] },
+    "benchmarkControlId": { "type": ["string", "null"], "description": "Only set when a verified mapping with provenance exists; unmapped stays null." },
+    "reasons": {
+      "type": "array",
+      "description": "Zero or more reasons. Multiple reasons do not create multiple checks.",
+      "items": {
+        "type": "object",
+        "required": ["phrase"],
+        "properties": {
+          "phrase": { "type": "string" },
+          "code": { "type": ["string", "null"] },
+          "expected": { "type": ["string", "null"] },
+          "actual": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

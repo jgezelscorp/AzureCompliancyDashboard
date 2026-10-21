@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/policy-state.schema.json",
+  "title": "Azure Policy compliance state for a resource and assignment",
+  "type": "object",
+  "required": ["resourceId", "policyAssignmentId", "policyDefinitionId", "complianceState", "timestamp"],
+  "properties": {
+    "resourceId": { "type": "string", "minLength": 1 },
+    "policyAssignmentId": { "type": "string", "minLength": 1 },
+    "policyDefinitionId": { "type": "string", "minLength": 1 },
+    "policyDefinitionReferenceId": { "type": ["string", "null"] },
+    "baselineFamily": { "$ref": "common.schema.json#/$defs/baselineFamily" },
+    "complianceState": { "enum": ["Compliant", "NonCompliant", "Exempt", "Conflict", "NotStarted", "Unknown"] },
+    "isCompliant": { "type": ["boolean", "null"] },
+    "timestamp": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" }
+  },
+  "additionalProperties": false
+}

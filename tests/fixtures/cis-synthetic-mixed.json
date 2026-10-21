@@ -1,0 +1,640 @@
+{
+  "schemaVersion": "1.0",
+  "synthetic": true,
+  "description": "EXPLICITLY SYNTHETIC native CIS fixture (not verified CIS evidence): fresh compliant, fresh noncompliant, stale, missing assignment, unknown eligibility, no report + exempt.",
+  "snapshotAt": "2026-01-15T12:00:00Z",
+  "machines": [
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01",
+      "name": "vm-synth-01",
+      "kind": "AzureVM",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Eligible",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    },
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02",
+      "name": "arc-synth-02",
+      "kind": "ArcMachine",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Eligible",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    },
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03",
+      "name": "vm-synth-03",
+      "kind": "AzureVM",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Eligible",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    },
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-04",
+      "name": "vm-synth-04",
+      "kind": "AzureVM",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Eligible",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    },
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-05",
+      "name": "arc-synth-05",
+      "kind": "ArcMachine",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Unknown",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    },
+    {
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06",
+      "name": "vm-synth-06",
+      "kind": "AzureVM",
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "rg-synthetic",
+      "location": "westeurope",
+      "osType": "Windows",
+      "osName": "Windows Server 2025 Datacenter (synthetic)",
+      "osBuild": "26100",
+      "eligibility": "Eligible",
+      "tags": {
+        "owner": "synthetic-team"
+      },
+      "synthetic": true
+    }
+  ],
+  "assignments": [
+    {
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "guestConfigurationName": "CISWindowsSecurityBaseline",
+      "guestConfigurationVersion": "0.0.0-synthetic",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionVersion": null,
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "assignmentHash": "synthetic-assignment-hash",
+      "parameterHash": "synthetic-parameter-hash",
+      "contentHash": "synthetic-content-hash",
+      "includeArcMachines": null,
+      "complianceStatus": "Compliant",
+      "lastComplianceStatusChecked": "2026-01-15T11:00:00Z",
+      "synthetic": true
+    },
+    {
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "guestConfigurationName": "CISWindowsSecurityBaseline",
+      "guestConfigurationVersion": "0.0.0-synthetic",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionVersion": null,
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "assignmentHash": "synthetic-assignment-hash",
+      "parameterHash": "synthetic-parameter-hash",
+      "contentHash": "synthetic-content-hash",
+      "includeArcMachines": true,
+      "complianceStatus": "NonCompliant",
+      "lastComplianceStatusChecked": "2026-01-15T09:00:00Z",
+      "synthetic": true
+    },
+    {
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "guestConfigurationName": "CISWindowsSecurityBaseline",
+      "guestConfigurationVersion": "0.0.0-synthetic",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionVersion": null,
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "assignmentHash": "synthetic-assignment-hash",
+      "parameterHash": "synthetic-parameter-hash",
+      "contentHash": "synthetic-content-hash",
+      "includeArcMachines": null,
+      "complianceStatus": "Compliant",
+      "lastComplianceStatusChecked": "2026-01-13T18:00:00Z",
+      "synthetic": true
+    },
+    {
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "guestConfigurationName": "CISWindowsSecurityBaseline",
+      "guestConfigurationVersion": "0.0.0-synthetic",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionVersion": null,
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "assignmentHash": "synthetic-assignment-hash",
+      "parameterHash": "synthetic-parameter-hash",
+      "contentHash": "synthetic-content-hash",
+      "includeArcMachines": null,
+      "complianceStatus": "Pending",
+      "lastComplianceStatusChecked": null,
+      "synthetic": true
+    }
+  ],
+  "reports": [
+    {
+      "reportId": "synthetic-report-76619882",
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceStatus": "Compliant",
+      "startTime": "2026-01-15T10:55:00Z",
+      "endTime": "2026-01-15T11:00:00Z",
+      "operationType": "Consistency",
+      "configurationVersion": "0.0.0-synthetic",
+      "checks": [
+        {
+          "checkKey": "synth-cis-001",
+          "name": "Synthetic CIS-style control 001",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-002",
+          "name": "Synthetic CIS-style control 002",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-003",
+          "name": "Synthetic CIS-style control 003",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-004",
+          "name": "Synthetic CIS-style control 004",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-005",
+          "name": "Synthetic CIS-style control 005",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-006",
+          "name": "Synthetic CIS-style control 006",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-007",
+          "name": "Synthetic CIS-style control 007",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-008",
+          "name": "Synthetic CIS-style control 008",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-009",
+          "name": "Synthetic CIS-style control 009",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-010",
+          "name": "Synthetic CIS-style control 010",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        }
+      ],
+      "synthetic": true
+    },
+    {
+      "reportId": "synthetic-report-59693106",
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceStatus": "NonCompliant",
+      "startTime": "2026-01-15T08:55:00Z",
+      "endTime": "2026-01-15T09:00:00Z",
+      "operationType": "Consistency",
+      "configurationVersion": "0.0.0-synthetic",
+      "checks": [
+        {
+          "checkKey": "synth-cis-001",
+          "name": "Synthetic CIS-style control 001",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-002",
+          "name": "Synthetic CIS-style control 002",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-003",
+          "name": "Synthetic CIS-style control 003",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-004",
+          "name": "Synthetic CIS-style control 004",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-005",
+          "name": "Synthetic CIS-style control 005",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-006",
+          "name": "Synthetic CIS-style control 006",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-007",
+          "name": "Synthetic CIS-style control 007",
+          "complianceStatus": "NonCompliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": [
+            {
+              "phrase": "Synthetic reason.",
+              "code": null,
+              "expected": null,
+              "actual": null
+            }
+          ]
+        },
+        {
+          "checkKey": "synth-cis-008",
+          "name": "Synthetic CIS-style control 008",
+          "complianceStatus": "NonCompliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": [
+            {
+              "phrase": "Synthetic reason.",
+              "code": null,
+              "expected": null,
+              "actual": null
+            }
+          ]
+        },
+        {
+          "checkKey": "synth-cis-009",
+          "name": "Synthetic CIS-style control 009",
+          "complianceStatus": "NonCompliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": [
+            {
+              "phrase": "Synthetic reason.",
+              "code": null,
+              "expected": null,
+              "actual": null
+            }
+          ]
+        },
+        {
+          "checkKey": "synth-cis-010",
+          "name": "Synthetic CIS-style control 010",
+          "complianceStatus": "NonCompliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": [
+            {
+              "phrase": "Synthetic reason.",
+              "code": null,
+              "expected": null,
+              "actual": null
+            }
+          ]
+        }
+      ],
+      "synthetic": true
+    },
+    {
+      "reportId": "synthetic-report-17409269",
+      "assignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03/providers/microsoft.guestconfiguration/guestconfigurationassignments/CISWindowsSecurityBaseline",
+      "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03",
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceStatus": "Compliant",
+      "startTime": "2026-01-13T17:55:00Z",
+      "endTime": "2026-01-13T18:00:00Z",
+      "operationType": "Consistency",
+      "configurationVersion": "0.0.0-synthetic",
+      "checks": [
+        {
+          "checkKey": "synth-cis-001",
+          "name": "Synthetic CIS-style control 001",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-002",
+          "name": "Synthetic CIS-style control 002",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-003",
+          "name": "Synthetic CIS-style control 003",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-004",
+          "name": "Synthetic CIS-style control 004",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-005",
+          "name": "Synthetic CIS-style control 005",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-006",
+          "name": "Synthetic CIS-style control 006",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-007",
+          "name": "Synthetic CIS-style control 007",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-008",
+          "name": "Synthetic CIS-style control 008",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-009",
+          "name": "Synthetic CIS-style control 009",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        },
+        {
+          "checkKey": "synth-cis-010",
+          "name": "Synthetic CIS-style control 010",
+          "complianceStatus": "Compliant",
+          "category": null,
+          "severity": null,
+          "benchmarkControlId": null,
+          "reasons": []
+        }
+      ],
+      "synthetic": true
+    }
+  ],
+  "policyStates": [
+    {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionReferenceId": null,
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceState": "Compliant",
+      "isCompliant": true,
+      "timestamp": "2026-01-15T11:30:00Z",
+      "synthetic": true
+    },
+    {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionReferenceId": null,
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceState": "NonCompliant",
+      "isCompliant": false,
+      "timestamp": "2026-01-15T09:30:00Z",
+      "synthetic": true
+    },
+    {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionReferenceId": null,
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceState": "Compliant",
+      "isCompliant": true,
+      "timestamp": "2026-01-13T18:30:00Z",
+      "synthetic": true
+    },
+    {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+      "policyDefinitionReferenceId": null,
+      "baselineFamily": "CISWindowsSecurityBaseline",
+      "complianceState": "Exempt",
+      "isCompliant": null,
+      "timestamp": "2026-01-15T09:30:00Z",
+      "synthetic": true
+    }
+  ],
+  "exemptions": [
+    {
+      "exemptionId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyExemptions/synthetic-exemption",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyAssignments/synthetic-assignment",
+      "category": "Waiver",
+      "expiresOn": "2026-02-15T00:00:00Z",
+      "displayName": "Synthetic exemption",
+      "synthetic": true
+    }
+  ],
+  "expected": {
+    "CISWindowsSecurityBaseline": {
+      "family": "CISWindowsSecurityBaseline",
+      "policyCompliance": {
+        "compliant": 2,
+        "nonCompliant": 1,
+        "exempt": 1,
+        "other": 0,
+        "percent": 66.67
+      },
+      "checkPassRate": {
+        "passed": 16,
+        "failed": 4,
+        "total": 20,
+        "percent": 80.0,
+        "reportsExcludedAsNotFresh": 1
+      },
+      "coverage": {
+        "eligible": 5,
+        "unknownEligibility": 1,
+        "assigned": 4,
+        "usableReport": 3,
+        "freshReport": 2,
+        "assignmentPercent": 80.0,
+        "usableReportPercent": 60.0,
+        "freshReportPercent": 40.0
+      },
+      "machines": [
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-01",
+          "evidenceQuality": "Fresh",
+          "reportedState": "Compliant",
+          "green": true
+        },
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-02",
+          "evidenceQuality": "Fresh",
+          "reportedState": "NonCompliant",
+          "green": false
+        },
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-03",
+          "evidenceQuality": "Stale",
+          "reportedState": "Compliant",
+          "green": false
+        },
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-04",
+          "evidenceQuality": "MissingAssignment",
+          "reportedState": null,
+          "green": false
+        },
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.hybridcompute/machines/arc-synth-05",
+          "evidenceQuality": "UnknownApplicability",
+          "reportedState": null,
+          "green": false
+        },
+        {
+          "machineId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-synthetic/providers/microsoft.compute/virtualmachines/vm-synth-06",
+          "evidenceQuality": "NoReport",
+          "reportedState": null,
+          "green": false
+        }
+      ]
+    }
+  }
+}
