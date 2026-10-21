@@ -1,7 +1,7 @@
 // @id evidence-exemptions
 // @tab evidence
 // @title Policy exemptions (expiry visible; an exemption is not compliance)
-// @note Source: policyresources / microsoft.authorization/policyexemptions. Availability of this type in ARG and the exact property names (expiresOn, exemptionCategory) are unverified; see docs/workbook.md.
+// @note Source: policyresources / microsoft.authorization/policyexemptions. The type and the properties expiresOn and exemptionCategory were verified against live Resource Graph.
 // @note Expiry is shown in UTC; an empty expiresOn means no expiry was exposed.
 // @nodata No policy exemptions visible in scope (or the type is not indexed).
 policyresources

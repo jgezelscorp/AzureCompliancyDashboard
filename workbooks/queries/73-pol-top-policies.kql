@@ -1,0 +1,12 @@
+// @id pol-top-policies
+// @tab policy
+// @title Top failing policies (affected resources)
+// @note Ranked by distinct non-compliant resources. A policy is identified by its definition name (a GUID for built-ins); effect is the definition action reported on the state row.
+// @note Severity is not exposed on state rows and is not claimed here.
+// @nodata No non-compliant policy states visible in scope.
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| where tostring(properties.complianceState) =~ 'NonCompliant'
+| summarize nonCompliantResources = dcount(tolower(tostring(properties.resourceId))), nonCompliantStates = count(), effect = max(tostring(properties.policyDefinitionAction)), assignments = dcount(tostring(properties.policyAssignmentName)) by policyDefinitionName = tostring(properties.policyDefinitionName)
+| order by nonCompliantResources desc

@@ -17,7 +17,9 @@ The workbook reports Azure Policy / Machine Configuration results. It does **not
 
 ## Tabs
 
-1. **Overview / CISO** - Azure Policy compliance %, check pass rate and coverage as three separate, labeled tables (numerator, denominator, null when the denominator is 0), evidence-quality breakdown, evidence-age distribution, inventory.
+1. **Overview / CISO** - Azure Policy compliance %, check pass rate and coverage as three separate, labeled tables (numerator, denominator, null when the denominator is 0), evidence-quality breakdown, evidence-age distribution (tables), inventory.
+1a. **Policy estate** - all-resource Azure Policy state rows from Resource Graph (`policyresources`, `microsoft.policyinsights/policystates`): overall compliance (Exempt and other states apart), by initiative, by resource type and subscription, and the top failing policies by affected resources. All four queries were verified against live Resource Graph with `az rest`; exemptions (verified type and properties) stay on the Evidence tab. Counts are ARG state rows and can differ from the standalone app's Policy Insights latest-state API counts. Python parity: `tests/workbook/test_policy_parity.py`.
+   The generated JSON must stay under 131072 characters (ARM expression limit); the two Overview charts were therefore changed to tables to make room.
 2. **Baselines** - `AzureWindowsBaseline` and native `CISWindowsSecurityBaseline` side by side, never merged; version cohorts.
 3. **Categories** - category summary; selecting a row lists the checks in it.
 4. **Check / reason detail** - unique checks with failing-machine counts; selecting a check lists its reasons per machine.

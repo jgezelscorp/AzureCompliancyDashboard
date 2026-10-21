@@ -1,0 +1,13 @@
+// @id pol-overview
+// @tab policy
+// @title Azure Policy compliance, estate-wide (policy state rows)
+// @note Source: policyresources / microsoft.policyinsights/policystates (latest state per resource x policy x assignment). Grain is the policy state row, not the resource.
+// @note Policy compliance % = Compliant / (Compliant + NonCompliant). Exempt, Conflict, Unknown and other states are counted apart and never enter the percentage.
+// @note No data (zero Compliant + NonCompliant) shows an empty percentage, never 0% or 100%.
+// @nodata No policy states visible in scope.
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| extend state = tostring(properties.complianceState)
+| summarize compliant = countif(state =~ 'Compliant'), nonCompliant = countif(state =~ 'NonCompliant'), exempt = countif(state =~ 'Exempt'), otherStates = countif(state !in~ ('Compliant', 'NonCompliant', 'Exempt')), stateRows = count(), nonCompliantResources = dcountif(tolower(tostring(properties.resourceId)), state =~ 'NonCompliant')
+| extend policyCompliancePercent = iff(compliant + nonCompliant == 0, real(null), round(100.0 * compliant / (compliant + nonCompliant), 2))

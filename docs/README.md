@@ -11,6 +11,7 @@
 | [auth-and-onboarding.md](auth-and-onboarding.md) | Entra sign-in, RBAC checks, scope onboarding, permissions manifest |
 | [rbac-configuration-design.md](rbac-configuration-design.md) | RBAC and configuration design |
 | [workbook.md](workbook.md) | Azure Workbook structure, parameters, Bicep deployment |
+| [policy-estate.md](policy-estate.md), [policy-api.md](policy-api.md) | Estate-wide Azure Policy metric definitions, endpoints and UI routes |
 | [logs-reporting.md](logs-reporting.md) | Optional Log Analytics history mode (tables, DCR, sink) |
 | [exports.md](exports.md) | CSV/PDF export jobs and limits |
 | [operations.md](operations.md) | Docker Compose operation, hardening, backup/restore |

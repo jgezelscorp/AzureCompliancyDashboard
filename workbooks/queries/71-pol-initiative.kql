@@ -1,0 +1,15 @@
+// @id pol-initiative
+// @tab policy
+// @title Compliance by initiative / standard (policy state rows)
+// @note Initiative = policySetDefinitionName of the state row; rows without an initiative are policies assigned directly and are grouped as '(direct assignment)'.
+// @note The category is the initiative's own metadata category as reported on the state row. Percent excludes Exempt and other states.
+// @nodata No policy states visible in scope.
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| extend state = tostring(properties.complianceState)
+| extend initiativeId = tostring(properties.policySetDefinitionName)
+| extend initiative = iff(isempty(initiativeId), '(direct assignment)', initiativeId)
+| summarize category = max(tostring(properties.policySetDefinitionCategory)), compliant = countif(state =~ 'Compliant'), nonCompliant = countif(state =~ 'NonCompliant'), exempt = countif(state =~ 'Exempt'), otherStates = countif(state !in~ ('Compliant', 'NonCompliant', 'Exempt')), nonCompliantResources = dcountif(tolower(tostring(properties.resourceId)), state =~ 'NonCompliant') by initiative
+| extend policyCompliancePercent = iff(compliant + nonCompliant == 0, real(null), round(100.0 * compliant / (compliant + nonCompliant), 2))
+| order by nonCompliant desc
