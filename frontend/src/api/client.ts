@@ -11,6 +11,8 @@ import type {
   MachinesResponse,
   MetricFamily,
   ScopesResponse,
+  ExportJob,
+  ExportRequest,
 } from "./types";
 
 export class ApiError extends Error {
@@ -50,6 +52,25 @@ async function get<T>(
   return (await res.json()) as T;
 }
 
+async function send<T>(
+  method: "POST" | "GET",
+  path: string,
+  body: unknown,
+  fetchImpl: typeof fetch,
+): Promise<T> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const token = await tokenProvider();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const res = await fetchImpl(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new ApiError(res.status, `${method} ${path} failed with ${res.status}`);
+  return (await res.json()) as T;
+}
+
 function query(params: Record<string, string | number | undefined>): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -82,6 +103,10 @@ export interface MetricsApi {
     signal?: AbortSignal,
   ): Promise<{ snapshotAt: string | null; machines: CheckMachineRow[] }>;
   runs(signal?: AbortSignal): Promise<{ runs: CollectionRun[] }>;
+  createExport(request: ExportRequest): Promise<ExportJob>;
+  listExports(signal?: AbortSignal): Promise<{ jobs: ExportJob[] }>;
+  /** Authenticated, re-authorized download; there is no shareable link. */
+  downloadExport(jobId: string): Promise<{ blob: Blob; filename: string }>;
 }
 
 export function createMetricsApi(f?: typeof fetch): MetricsApi {
@@ -98,6 +123,18 @@ export function createMetricsApi(f?: typeof fetch): MetricsApi {
     checkMachines: (family, checkKey, subscriptionId, s) =>
       call(`/api/v1/metrics/checks/machines${query({ family, checkKey, subscriptionId })}`, s),
     runs: (s) => call("/api/v1/collection/runs", s),
+    createExport: (request) => send<ExportJob>("POST", "/api/v1/exports", request, f ?? fetch),
+    listExports: (s) => call("/api/v1/exports", s),
+    downloadExport: async (jobId) => {
+      const headers: Record<string, string> = {};
+      const token = await tokenProvider();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const path = `/api/v1/exports/${encodeURIComponent(jobId)}/download`;
+      const res = await (f ?? fetch)(`${BASE_URL}${path}`, { headers });
+      if (!res.ok) throw new ApiError(res.status, `GET ${path} failed with ${res.status}`);
+      const match = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
+      return { blob: await res.blob(), filename: match?.[1] ?? "export" };
+    },
   };
 }
 

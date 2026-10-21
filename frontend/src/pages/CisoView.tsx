@@ -1,6 +1,7 @@
 import { useMetricsApi } from "../api/context";
 import type { EvidenceQuality, FamilyMetrics, LatestMetrics, MetricFamily } from "../api/types";
 import { Empty, ErrorState, Loading, ToneBadge } from "../components/common";
+import { ExportControls } from "../components/ExportControls";
 import { EvidenceNotice } from "../components/EvidenceNotice";
 import { FamilyMetricCards } from "../components/FamilyMetricCards";
 import { Trend, seriesFrom } from "../components/Trend";
@@ -68,6 +69,14 @@ export function CisoView() {
         <FamilyPosture key={family} family={family} latest={latest} />
       ))}
       <CoverageGaps />
+      <ExportControls
+        options={[
+          {
+            label: "Export executive PDF",
+            request: { format: "pdf", template: "executive", family: "AzureWindowsBaseline" },
+          },
+        ]}
+      />
     </section>
   );
 }

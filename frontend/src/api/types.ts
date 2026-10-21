@@ -197,3 +197,28 @@ export interface AuthConfig {
   spaClientId: string;
   apiScope: string;
 }
+
+export type ExportFormat = "csv" | "pdf";
+
+export interface ExportRequest {
+  format: ExportFormat;
+  family: MetricFamily;
+  template?: "executive" | "technical";
+  dataset?: "checks" | "machines";
+  subscriptionId?: string;
+}
+
+export interface ExportJob {
+  jobId: string;
+  kind: string;
+  family: MetricFamily;
+  subscriptionId: string | null;
+  status: "completed" | "failed" | "expired";
+  snapshotAt: string | null;
+  createdAt: string;
+  expiresAt: string;
+  rowCount: number;
+  truncated: boolean;
+  filename: string | null;
+  scopeCount: number;
+}

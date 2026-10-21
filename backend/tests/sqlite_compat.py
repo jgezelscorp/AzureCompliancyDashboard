@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db import Base
+from app.db_exports import ExportJobRow as _e  # noqa: F401
 from app.db_history import MetricSnapshotRow as _  # noqa: F401  (registers tables)
 from app.db_onboarding import OnboardedScopeRow as _o  # noqa: F401
 
