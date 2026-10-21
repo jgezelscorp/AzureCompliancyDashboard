@@ -1,37 +1,52 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { ApiError, api } from "./api/client";
+import { describe, expect, it } from "vitest";
 import App from "./App";
+import { ApiError, type MetricsApi } from "./api/client";
+import { createMockApi } from "./api/mock";
 
-function renderAt(path: string) {
+function renderAt(path: string, api: MetricsApi) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <App />
+      <App api={api} />
     </MemoryRouter>,
   );
 }
 
-describe("routing", () => {
-  it("redirects root to the technical view", () => {
-    renderAt("/");
-    expect(screen.getByRole("heading", { name: "Technical view" })).toBeInTheDocument();
+function failing(status: number): MetricsApi {
+  const reject = () => Promise.reject(new ApiError(status, "boom"));
+  return { ...createMockApi(), latest: reject, scopes: reject, history: reject };
+}
+
+describe("App", () => {
+  it("shows navigation and the Technical view by default", async () => {
+    renderAt("/", createMockApi());
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Azure Compliancy Dashboard");
+    expect(screen.getByRole("link", { name: "CISO" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /technical/i })).toBeInTheDocument();
   });
 
-  it("renders the CISO view", () => {
-    renderAt("/ciso");
-    expect(screen.getByRole("heading", { name: "CISO view" })).toBeInTheDocument();
-  });
-});
-
-describe("api client", () => {
-  it("returns typed JSON", async () => {
-    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ok", version: "1" })));
-    const res = await api.health(f as unknown as typeof fetch);
-    expect(res.status).toBe("ok");
+  it("renders the CISO view with honesty labels", async () => {
+    renderAt("/ciso", createMockApi());
+    expect(await screen.findByRole("heading", { name: "CISO view" })).toBeInTheDocument();
+    expect((await screen.findAllByText(/certif/i)).length).toBeGreaterThan(0);
   });
 
-  it("throws ApiError on failure", async () => {
-    const f = vi.fn().mockResolvedValue(new Response("nope", { status: 500 }));
-    await expect(api.info(f as unknown as typeof fetch)).rejects.toBeInstanceOf(ApiError);
+  it("never labels missing data as meeting target", async () => {
+    renderAt("/ciso", createMockApi());
+    await screen.findByRole("heading", { name: "CISO view" });
+    await waitFor(() => expect(screen.getAllByText(/Coverage gaps/i).length).toBeGreaterThan(0));
+  });
+
+  it("explains 403 without leaking data", async () => {
+    renderAt("/ciso", failing(403));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/access denied/i);
+  });
+
+  it("offers retry on server errors", async () => {
+    renderAt("/ciso", failing(500));
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });

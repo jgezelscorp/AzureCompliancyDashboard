@@ -1,8 +1,13 @@
-"""Onboarding scope registration (in-memory; persistence is a later work package)."""
+"""Onboarding scope registration, persisted in the ``onboarded_scopes`` table."""
 
-import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.db_onboarding import OnboardedScopeRow
 
 
 @dataclass(frozen=True)
@@ -12,20 +17,40 @@ class RegisteredScope:
     registered_at: datetime
 
 
-@dataclass
+def _scope(row: OnboardedScopeRow) -> RegisteredScope:
+    at = row.registered_at
+    return RegisteredScope(
+        row.subscription_id, row.registered_by, at if at.tzinfo else at.replace(tzinfo=UTC)
+    )
+
+
 class OnboardingStore:
-    _scopes: dict[str, RegisteredScope] = field(default_factory=dict)
-    _lock: threading.Lock = field(default_factory=threading.Lock)
+    """Idempotent registry; the first registration of a subscription wins."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
 
     def register(self, subscription_id: str, registered_by: str) -> RegisteredScope:
-        with self._lock:
-            existing = self._scopes.get(subscription_id)
-            if existing:
-                return existing
-            scope = RegisteredScope(subscription_id, registered_by, datetime.now(UTC))
-            self._scopes[subscription_id] = scope
-            return scope
+        sid = subscription_id.lower()
+        existing = self._session.get(OnboardedScopeRow, sid)
+        if existing is None:
+            self._session.add(
+                OnboardedScopeRow(
+                    subscription_id=sid,
+                    registered_by=registered_by,
+                    registered_at=datetime.now(UTC),
+                )
+            )
+            try:
+                self._session.commit()
+            except IntegrityError:  # concurrent registration of the same scope
+                self._session.rollback()
+            existing = self._session.get(OnboardedScopeRow, sid)
+        assert existing is not None
+        return _scope(existing)
 
     def list(self) -> list[RegisteredScope]:
-        with self._lock:
-            return sorted(self._scopes.values(), key=lambda s: s.subscription_id)
+        rows = self._session.scalars(
+            select(OnboardedScopeRow).order_by(OnboardedScopeRow.subscription_id)
+        )
+        return [_scope(r) for r in rows]

@@ -5,12 +5,14 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
 from app.arm import ArmClient, HttpArmClient
 from app.auth.obo import OboClient, OboError
 from app.auth.permissions import CONFIG_EDIT_ACTION, has_action
 from app.auth.settings import AuthSettings, get_auth_settings
 from app.auth.tokens import JwksSigningKeyProvider, Principal, TokenError, TokenValidator
+from app.database import get_session
 from app.onboarding import OnboardingStore
 
 
@@ -30,9 +32,8 @@ def get_arm() -> ArmClient:
     return HttpArmClient(get_auth_settings().arm_base_url)
 
 
-@lru_cache
-def get_store() -> OnboardingStore:
-    return OnboardingStore()
+def get_store(session: Annotated[Session, Depends(get_session)]) -> OnboardingStore:
+    return OnboardingStore(session)
 
 
 def current_principal(
