@@ -5,6 +5,5 @@
 // @note ARG indexes supported properties only; missing osType shows as Unknown and stays visible. Inventory counts are not Windows eligibility and not assessment coverage.
 // @nodata No Azure VMs or Arc machines in scope.
 //#include machines
-machines
-| summarize machinesCount = count() by kind, osType = iff(osType == '', 'unknown', osType), eligibility
-| order by kind asc, eligibility asc
+| summarize machinesCount = count() by machineKind, osType = iff(osType == '', 'unknown', osType), eligibility
+| order by machineKind asc, eligibility asc

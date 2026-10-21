@@ -6,10 +6,7 @@
 // @note The age buckets show how current the latest evidence is. Historical trend requires stored snapshots (enhanced mode, I08, or the app).
 // @note Age = now() - latestAssignmentReport.endTime. Machines without a report endTime are in 'No report time'.
 // @nodata No machine reports in scope.
-//#include machines
-//#include assignments
 //#include evidence
-evidence
 | where hasReport == true
 | extend ageBucket = case(
     isnull(ageSeconds), '99 No report time',

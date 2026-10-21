@@ -1,8 +1,8 @@
-let machines = resources
-    | where type in~ ('microsoft.compute/virtualmachines', 'microsoft.hybridcompute/machines')
-    | where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
-    | extend machineId = tolower(id)
-    | extend kind = iff(type =~ 'microsoft.hybridcompute/machines', 'ArcMachine', 'AzureVM')
-    | extend osType = tolower(tostring(iff(kind == 'ArcMachine', properties.osType, properties.storageProfile.osDisk.osType)))
-    | extend eligibility = case(osType == 'windows', 'Eligible', osType == 'linux', 'NotEligible', 'Unknown')
-    | project machineId, machineName = name, kind, subscriptionId, resourceGroup, location, osType, eligibility;
+resources
+| where type in~ ('microsoft.compute/virtualmachines', 'microsoft.hybridcompute/machines')
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| extend machineId = tolower(id)
+| extend machineKind = iff(type =~ 'microsoft.hybridcompute/machines', 'ArcMachine', 'AzureVM')
+| extend osType = tolower(tostring(iff(machineKind == 'ArcMachine', properties.osType, properties.storageProfile.osDisk.osType)))
+| extend eligibility = case(osType == 'windows', 'Eligible', osType == 'linux', 'NotEligible', 'Unknown')
+| project machineId, machineName = name, machineKind, subscriptionId, resourceGroup, location, osType, eligibility

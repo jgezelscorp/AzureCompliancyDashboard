@@ -112,7 +112,7 @@ def test_kql_text_carries_contract_constants():
     joined = "\n".join(q["query"] for q in load_queries())
     assert f"ageSeconds <= {int(reference.STALE_AFTER.total_seconds())}" in joined
     assert "arg_max(rank" in joined and "real(null)" in joined
-    assert "freshChecks" in joined and "quality == 'Fresh'" in joined
+    assert "isnotempty(checkKey)" in joined and "quality == 'Fresh'" in joined
     # the model and the KQL classify the same quality values
     for quality in ("UnknownApplicability", "MissingAssignment", "NoReport", "UnknownAge", "Fresh", "Stale"):
         assert f"'{quality}'" in joined

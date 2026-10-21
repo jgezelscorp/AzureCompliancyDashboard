@@ -15,7 +15,10 @@ param workbookName string = guid(resourceGroup().id, 'azure-compliance-dashboard
 @description('Tags applied to the workbook resource.')
 param tags object = {}
 
-var serializedData = loadTextContent('../../../workbooks/azure-compliance.workbook.json')
+@description('Optional Log Analytics workspace resource id preselected on the History tab. Pass at deploy time; leave empty to pick it in the workbook.')
+param defaultWorkspaceResourceId string = ''
+
+var serializedData = replace(loadTextContent('../../../workbooks/azure-compliance.workbook.json'), '__DEFAULT_WORKSPACE_RESOURCE_ID__', defaultWorkspaceResourceId)
 
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
   name: workbookName

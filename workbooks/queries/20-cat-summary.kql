@@ -7,11 +7,7 @@
 // @note Counts are unique (machine, check) pairs from Fresh reports only. failedChecks and machinesAffected are different grains: one failing check on N machines adds N to failedChecks.
 // @note benchmarkControlId is not available from ARG; no CIS control mapping is claimed.
 // @nodata No Fresh reports with checks in scope.
-//#include machines
-//#include assignments
-//#include evidence
-//#include checks
-freshChecks
+//#include freshchecks
 | where '{Family}' == '*' or family == '{Family}'
 | summarize totalChecks = count(), failedChecks = countif(checkStatus == 'NonCompliant'), distinctChecks = dcount(checkKey), machinesAffected = dcountif(machineId, checkStatus == 'NonCompliant') by family, category
 | extend failedPercent = iff(totalChecks == 0, real(null), round(100.0 * failedChecks / totalChecks, 2))

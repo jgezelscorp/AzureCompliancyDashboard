@@ -1,12 +1,12 @@
-let policyRows = policyresources
-    | where type =~ 'microsoft.policyinsights/policystates'
-    | extend resourceId = tolower(tostring(properties.resourceId))
-    | extend rg = tolower(coalesce(tostring(properties.resourceGroup), resourceGroup))
-    | where '*' in ({ResourceGroups}) or rg in~ ({ResourceGroups})
-    | extend defId = tolower(tostring(properties.policyDefinitionId))
-    | extend family = case(
-        defId endswith strcat('/', tolower('{CisDefinitionId}')), 'CISWindowsSecurityBaseline',
-        defId endswith strcat('/', tolower('{AzureBaselineDefinitionId}')), 'AzureWindowsBaseline',
-        'Other')
-    | extend state = tostring(properties.complianceState)
-    | project resourceId, assignmentId = tolower(tostring(properties.policyAssignmentId)), defId, family, state, stateTime = todatetime(properties.timestamp);
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| extend resourceId = tolower(tostring(properties.resourceId))
+| extend rg = tolower(coalesce(tostring(properties.resourceGroup), resourceGroup))
+| where '*' in ({ResourceGroups}) or rg in~ ({ResourceGroups})
+| extend defId = tolower(tostring(properties.policyDefinitionId))
+| extend family = case(
+    defId endswith strcat('/', tolower('{CisDefinitionId}')), 'CISWindowsSecurityBaseline',
+    defId endswith strcat('/', tolower('{AzureBaselineDefinitionId}')), 'AzureWindowsBaseline',
+    'Other')
+| extend state = tostring(properties.complianceState)
+| project resourceId, assignmentId = tolower(tostring(properties.policyAssignmentId)), defId, family, state, stateTime = todatetime(properties.timestamp)

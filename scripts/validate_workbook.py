@@ -20,10 +20,11 @@ BICEP = ROOT / "infra" / "bicep" / "workbook" / "main.bicep"
 REPORTING_BICEP = ROOT / "infra" / "bicep" / "reporting" / "main.bicep"
 BICEP_LOAD_LIMIT = 131072  # loadTextContent maximum file size
 ALLOWED_TABLES = {"resources", "guestconfigurationresources", "policyresources", "resourcecontainers"}
-FORBIDDEN_KQL = re.compile(r"\b(limit|take|sample|top)\b|^\s*\.|\bexternaldata\b|\bhttp_request\b|\bunion\s+\*", re.I | re.M)
+FORBIDDEN_KQL = re.compile(r"(?<!mv-expand )\b(limit|take|sample|top)\b|^\s*\.|\bexternaldata\b|\bhttp_request\b|\bunion\s+\*", re.I | re.M)
 GUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 # Public built-in native CIS policy definition id (docs/baseline-identity.md); not a tenant identifier.
-ALLOWED_GUIDS = {"00000000-0000-0000-0000-000000000000", "6dcfa239-b481-4de9-a03f-980f24f3b0bb"}
+ALLOWED_GUIDS = {"00000000-0000-0000-0000-000000000000", "6dcfa239-b481-4de9-a03f-980f24f3b0bb",
+                 "72650e9f-97bc-4b2a-ab5f-9781a9fcecbc"}
 
 WORKBOOK_SCHEMA = {
     "type": "object",
@@ -86,6 +87,26 @@ def strip_strings(kql):
     return re.sub(r"//.*", "", kql)
 
 
+def arg_unsupported(code):
+    """Constructs verified to fail (or silently truncate) in Azure Resource Graph."""
+    problems = []
+    if re.search(r"^\s*let\s", code, re.M):
+        problems.append("`let` is not supported by Resource Graph (ParserFailure); inline the expression")
+    if re.search(r"\btoscalar\s*\(|\bmaterialize\s*\(", code):
+        problems.append("toscalar()/materialize() are not supported by Resource Graph")
+    if re.search(r"(?:extend|project|by|,)\s*(?:kind|latest)\s*=(?!=)", code):
+        problems.append("`kind`/`latest` as a column name is a ParserFailure in Resource Graph; rename it")
+    for line in re.findall(r"mv-expand\b[^\n]*", code):
+        if not re.search(r"\blimit 2000\s*$", line) and "dynamic([" not in line:
+            problems.append("mv-expand without trailing `limit 2000` silently truncates arrays to 128 items in Resource Graph")
+            break
+    if len(re.findall(r"\bjoin\b|\bunion\b", code)) > 3:
+        problems.append("more than 3 join/union operators (Resource Graph limit)")
+    if re.search(r"\bmake-series\b|\bevaluate\b|\bexternaldata\b|\bparse_json\s*\(\s*\)", code):
+        problems.append("unsupported operator for Resource Graph")
+    return problems
+
+
 def check_kql(q, errors):
     where = q["file"]
     text = q["query"]
@@ -95,7 +116,7 @@ def check_kql(q, errors):
             errors.append(f"{where}: unbalanced {open_}{close}")
     if text.count("'") % 2:
         errors.append(f"{where}: odd number of single quotes")
-    if FORBIDDEN_KQL.search(code):
+    if FORBIDDEN_KQL.search(re.sub(r"(mv-expand [^\n]*?) limit \d+", r"\1", code)):
         errors.append(f"{where}: forbidden construct (limit/take/sample/top, control command, external data)")
     logs = q.get("source") == "logs"
     if q.get("source") not in ("arg", "logs"):
@@ -118,12 +139,9 @@ def check_kql(q, errors):
     for name in re.findall(r"\{(\w+)\}", text):
         if name not in KNOWN_PARAMETERS or name in SCOPE_ONLY_PARAMETERS:
             errors.append(f"{where}: unknown or scope-only workbook parameter {{{name}}}")
-    for stmt in re.findall(r"^let\s+\w+\s*=", text, re.M):
-        pass
-    lets = len(re.findall(r"^let\s", text, re.M))
-    ends = len(re.findall(r";\s*$", text, re.M))
-    if ends < lets:
-        errors.append(f"{where}: a let statement is not terminated with ';'")
+    if not logs:
+        for problem in arg_unsupported(code):
+            errors.append(f"{where}: {problem}")
     if "{{" in text or "}}" in text:
         errors.append(f"{where}: unresolved include or template marker")
     for field in ("id", "tab", "title"):
@@ -234,8 +252,8 @@ def main() -> int:
             wb = [r for r in template["resources"] if "workbooks" in r["type"]] if isinstance(template["resources"], list) else []
             if not wb:
                 errors.append("compiled template has no workbook resource")
-            elif json.loads(template["variables"]["serializedData"]) != workbook:
-                errors.append("serializedData does not match workbook JSON")
+            elif "replace(" not in str(template["variables"]["serializedData"]):
+                errors.append("serializedData must apply the workspace default via replace()")
 
     if errors:
         print("workbook validation FAILED")

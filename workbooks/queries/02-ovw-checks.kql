@@ -7,17 +7,8 @@
 // @note A duplicate check key within one report keeps the worst status (matches the app normalizer).
 // @note ARG exposes the latest report only; it is not a guarantee of full report content. Compare with the report GET for a selected machine.
 // @nodata No Fresh report with checks in scope.
-//#include machines
-//#include assignments
-//#include evidence
-//#include checks
-let counts = freshChecks
-    | summarize total = count(), passed = countif(checkStatus == 'Compliant') by family;
-let excluded = evidence
-    | summarize reportsExcludedAsNotFresh = countif(quality in ('Stale', 'UnknownAge')) by family;
-excluded
-| join kind=leftouter counts on family
-| extend total = coalesce(total, 0), passed = coalesce(passed, 0)
+//#include checkrows
+| summarize total = countif(quality == 'Fresh' and isnotempty(checkKey)), passed = countif(quality == 'Fresh' and isnotempty(checkKey) and checkStatus == 'Compliant'), reportsExcludedAsNotFresh = dcountif(machineId, quality in ('Stale', 'UnknownAge')) by family
 | extend percent = iff(total == 0, real(null), round(100.0 * passed / total, 2))
 | project family, percent, passed, failed = total - passed, total, reportsExcludedAsNotFresh
 | order by family asc

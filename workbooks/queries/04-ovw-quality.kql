@@ -6,9 +6,6 @@
 // @note Counts machines x family over ALL machines in scope (including NotEligible and Unknown eligibility), so totals differ from the coverage denominator.
 // @note ARG does not expose Unsupported, AccessDenied, ProviderUnavailable, Partial or CollectionFailure; those qualities need collector (I05/I08) evidence.
 // @nodata No machines in scope.
-//#include machines
-//#include assignments
 //#include evidence
-evidence
 | summarize machinesCount = count(), green = countif(green) by family, quality
 | order by family asc, quality asc

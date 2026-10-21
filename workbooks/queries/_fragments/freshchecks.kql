@@ -1,0 +1,2 @@
+//#include checkrows
+| where quality == 'Fresh' and isnotempty(checkKey)

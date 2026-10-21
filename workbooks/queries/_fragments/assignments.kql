@@ -1,13 +1,14 @@
-let assignments = guestconfigurationresources
-    | where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'
-    | extend assignmentId = tolower(id)
-    | extend machineId = tostring(split(assignmentId, '/providers/microsoft.guestconfiguration/')[0])
-    | extend gcName = tostring(coalesce(properties.guestConfiguration.name, name))
-    | extend family = case(gcName =~ 'AzureWindowsBaseline', 'AzureWindowsBaseline', gcName =~ 'CISWindowsSecurityBaseline', 'CISWindowsSecurityBaseline', 'Other')
-    | where family != 'Other'
-    | extend latest = properties.latestAssignmentReport
-    | extend hasReport = isnotempty(tostring(latest))
-    | extend reportEnd = todatetime(latest.endTime)
-    | extend reportState = case(tolower(tostring(latest.complianceStatus)) == 'compliant', 'Compliant', tolower(tostring(latest.complianceStatus)) == 'noncompliant', 'NonCompliant', tolower(tostring(latest.complianceStatus)) == 'pending', 'Pending', 'Unknown')
-    | extend rank = coalesce(reportEnd, datetime(1900-01-01))
-    | project assignmentId, machineId, family, gcName, gcVersion = tostring(properties.guestConfiguration.version), hasReport, reportEnd, reportState, rank, resources = latest.resources;
+guestconfigurationresources
+| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'
+| extend assignmentId = tolower(id)
+| extend machineId = tostring(split(assignmentId, '/providers/microsoft.guestconfiguration/')[0])
+| extend gcName = tostring(coalesce(properties.guestConfiguration.name, name))
+| extend family = case(gcName =~ 'AzureWindowsBaseline', 'AzureWindowsBaseline', gcName =~ 'CISWindowsSecurityBaseline', 'CISWindowsSecurityBaseline', 'Other')
+| where family != 'Other'
+| extend lastReport = properties.latestAssignmentReport
+| extend hasReport = isnotempty(tostring(lastReport))
+| extend reportEnd = todatetime(lastReport.endTime)
+| extend reportStatus = tolower(tostring(lastReport.complianceStatus))
+| extend reportState = case(reportStatus in ('compliant', 'true'), 'Compliant', reportStatus in ('noncompliant', 'false'), 'NonCompliant', reportStatus == 'pending', 'Pending', 'Unknown')
+| extend rank = coalesce(reportEnd, datetime(1900-01-01))
+| project assignmentId, machineId, family, gcName, gcVersion = tostring(properties.guestConfiguration.version), hasReport, reportEnd, reportState, rank, resources = lastReport.resources

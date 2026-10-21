@@ -24,7 +24,8 @@ Honest, consolidated list. **Nothing has been deployed to Azure, no app registra
 
 - ARG table and column names are unverified live. If `latestAssignmentReport.endTime` is not projected, all reports show UnknownAge (never green).
 - The workbook has never been rendered in the portal.
-- `AzureBaselineDefinitionId` is a placeholder and must be set, otherwise no policy row is labelled AzureWindowsBaseline.
+- `AzureBaselineDefinitionId` defaults to the built-in "Windows machines should meet requirements of the Azure compute security baseline" definition (`72650e9f-97bc-4b2a-ab5f-9781a9fcecbc`, verified with `az policy definition show`). Change it if your estate assigns a different definition, otherwise policy rows are labelled Other.
+- Resource Graph has no `let`, `toscalar` or `materialize`, truncates `mv-expand` to 128 items unless `limit 2000` is given, and rejects `kind` / `latest` as column names. The workbook queries are written around that; `scripts\validate_workbook.py` and `tests\workbook\test_workbook_static.py` guard it. Check categories are derived from a `[Category]` prefix on the check name; the Azure compute baseline has none, so all its checks show as Uncategorized.
 - Check keys containing a single quote break the drilldown.
 
 ## I08 Log Analytics reporting

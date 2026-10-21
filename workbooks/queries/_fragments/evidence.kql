@@ -1,15 +1,18 @@
-let evidence = machines
-    | mv-expand family = dynamic(['AzureWindowsBaseline', 'CISWindowsSecurityBaseline'])
-    | extend family = tostring(family)
-    | join kind=leftouter (assignments | summarize arg_max(rank, *) by machineId, family) on machineId, family
-    | extend ageSeconds = datetime_diff('second', now(), reportEnd)
-    | extend quality = case(
-        eligibility == 'Unknown', 'UnknownApplicability',
-        isempty(assignmentId), 'MissingAssignment',
-        not(hasReport), 'NoReport',
-        isnull(reportEnd), 'UnknownAge',
-        ageSeconds <= 86400, 'Fresh',
-        'Stale')
-    | extend reportedState = iff(hasReport == true and quality != 'UnknownApplicability', reportState, '')
-    | extend green = quality == 'Fresh' and reportedState == 'Compliant'
-    | project machineId, machineName, kind, subscriptionId, resourceGroup, location, osType, eligibility, family, assignmentId, gcVersion, hasReport, reportEnd, ageSeconds, quality, reportedState, green, resources;
+//#include machines
+| mv-expand family = dynamic(['AzureWindowsBaseline', 'CISWindowsSecurityBaseline'])
+| extend family = tostring(family)
+| join kind=leftouter (
+    //#include assignments
+    | summarize arg_max(rank, *) by machineId, family
+  ) on machineId, family
+| extend ageSeconds = datetime_diff('second', now(), reportEnd)
+| extend quality = case(
+    eligibility == 'Unknown', 'UnknownApplicability',
+    isempty(assignmentId), 'MissingAssignment',
+    not(hasReport), 'NoReport',
+    isnull(reportEnd), 'UnknownAge',
+    ageSeconds <= 86400, 'Fresh',
+    'Stale')
+| extend reportedState = iff(hasReport == true and quality != 'UnknownApplicability', reportState, '')
+| extend green = quality == 'Fresh' and reportedState == 'Compliant'
+| project machineId, machineName, machineKind, subscriptionId, resourceGroup, location, osType, eligibility, family, assignmentId, gcVersion, hasReport, reportEnd, ageSeconds, quality, reportedState, green, resources

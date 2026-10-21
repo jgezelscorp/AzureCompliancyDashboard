@@ -7,7 +7,6 @@
 // @note This is NOT the check pass rate and NOT coverage. A machine with no policy state has no row here.
 // @nodata No policy state rows in scope (no data is not compliance).
 //#include policy
-policyRows
 | summarize compliant = countif(state == 'Compliant'), nonCompliant = countif(state == 'NonCompliant'), exempt = countif(state == 'Exempt'), other = countif(state !in ('Compliant', 'NonCompliant', 'Exempt')) by family
 | extend denominator = compliant + nonCompliant
 | extend percent = iff(denominator == 0, real(null), round(100.0 * compliant / denominator, 2))

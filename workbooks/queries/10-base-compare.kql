@@ -6,14 +6,6 @@
 // @note Each metric keeps its own numerator and denominator: checks are Fresh-report unique checks; machines are all in-scope machines x family.
 // @note This is an Azure Policy / Machine Configuration report view. It is not a CIS certification or attestation of any kind.
 // @nodata No machines in scope.
-//#include machines
-//#include assignments
-//#include evidence
-//#include checks
-let checkCounts = freshChecks
-    | summarize checksTotal = count(), checksCompliant = countif(checkStatus == 'Compliant') by family;
-evidence
-| summarize machinesInScope = count(), eligible = countif(eligibility == 'Eligible'), withAssignment = countif(quality != 'MissingAssignment' and quality != 'UnknownApplicability'), freshReports = countif(quality == 'Fresh'), staleReports = countif(quality == 'Stale'), unknownAgeReports = countif(quality == 'UnknownAge'), noReport = countif(quality == 'NoReport'), unknownApplicability = countif(quality == 'UnknownApplicability'), greenMachines = countif(green) by family
-| join kind=leftouter checkCounts on family
-| project family, machinesInScope, eligible, withAssignment, freshReports, staleReports, unknownAgeReports, noReport, unknownApplicability, greenMachines, checksCompliant = coalesce(checksCompliant, 0), checksTotal = coalesce(checksTotal, 0)
+//#include checkrows
+| summarize machinesInScope = dcount(machineId), eligible = dcountif(machineId, eligibility == 'Eligible'), withAssignment = dcountif(machineId, quality != 'MissingAssignment' and quality != 'UnknownApplicability'), freshReports = dcountif(machineId, quality == 'Fresh'), staleReports = dcountif(machineId, quality == 'Stale'), unknownAgeReports = dcountif(machineId, quality == 'UnknownAge'), noReport = dcountif(machineId, quality == 'NoReport'), unknownApplicability = dcountif(machineId, quality == 'UnknownApplicability'), greenMachines = dcountif(machineId, green), checksCompliant = countif(quality == 'Fresh' and isnotempty(checkKey) and checkStatus == 'Compliant'), checksTotal = countif(quality == 'Fresh' and isnotempty(checkKey)) by family
 | order by family asc
