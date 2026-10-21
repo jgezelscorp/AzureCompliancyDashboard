@@ -1,0 +1,56 @@
+# Squad: ignore runtime state (logs, inbox, sessions)
+# Note: .squad/casting/* is identity and MUST be committed to main, not ignored
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+.squad/.scratch/
+.squad/.cache/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+# Squad scaffolding (kept local, not part of the product repo)
+.squad/
+.copilot/
+.vscode/
+.mcp.json
+.gitattributes
+.github/agents/
+.github/skills/
+.github/workflows/squad-*.yml
+.github/workflows/sync-squad-labels.yml
+
+# Secrets and certificates
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+*.crt
+*.p12
+secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local data and artifacts
+pgdata/
+*.log
+exports/
+.DS_Store

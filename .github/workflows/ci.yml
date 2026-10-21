@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for secrets
+        run: |
+          if git grep -nIE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.' -- . ':!.github/workflows/ci.yml'; then
+            echo "Possible secret found"; exit 1
+          fi
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backend checks
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            cd backend
+            pip install -e ".[dev]"
+            ruff check .
+            mypy .
+            pytest
+          else
+            echo "backend not scaffolded yet"
+          fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Frontend checks
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend
+            npm ci
+            npm run lint
+            npm test --if-present
+            npm run build
+          else
+            echo "frontend not scaffolded yet"
+          fi
+
+  bicep-workbook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Bicep and workbook JSON
+        run: |
+          shopt -s globstar nullglob
+          for f in infra/bicep/**/*.bicep; do az bicep build --file "$f" --stdout > /dev/null; done
+          for f in workbooks/**/*.json; do python -c "import json,sys; json.load(open(sys.argv[1]))" "$f"; done
