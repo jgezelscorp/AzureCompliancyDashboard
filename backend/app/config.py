@@ -50,6 +50,18 @@ class Settings(BaseSettings):
     # Repo-managed category overrides: JSON list of {type: exact|prefix|regex, pattern, category}
     category_overrides: str = ""
     category_overrides_file: str = ""
+    # Estate-wide policy view: only these tag keys are stored (tag values may hold personal data).
+    estate_tag_keys: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "owner",
+            "environment",
+            "criticality",
+            "costcenter",
+            "businessunit",
+        ]
+    )
+    estate_inventory_enabled: bool = True
+    defender_enabled: bool = True
 
     @field_validator("category_overrides")
     @classmethod
@@ -75,7 +87,7 @@ class Settings(BaseSettings):
             raise ValueError(f"policy_family_map values must be one of {sorted(allowed)}")
         return {k.lower(): f for k, f in v.items()}
 
-    @field_validator("subscription_ids", "cors_origins", mode="before")
+    @field_validator("subscription_ids", "cors_origins", "estate_tag_keys", mode="before")
     @classmethod
     def _split_csv(cls, v: object) -> object:
         if isinstance(v, str):

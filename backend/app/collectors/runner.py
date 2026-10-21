@@ -11,7 +11,7 @@ from sqlalchemy import exists, func, select, text
 from sqlalchemy.orm import Session
 
 from app.azure.client import ArmAccessDenied, ArmClient, ArmError, PagingError
-from app.collectors import sources
+from app.collectors import estate, sources
 from app.collectors.normalize import (
     FamilyClassifier,
     NormalizationError,
@@ -32,6 +32,7 @@ from app.collectors.persist import (
 )
 from app.config import Settings
 from app.db import CheckRow, CollectionRunRow, ReportRow
+from app.metrics.estate_store import write_estate_snapshots
 from app.metrics.store import load_bundle, write_snapshots
 from app.models import Assignment, Machine, PolicyState, Report
 from app.sink.service import LogsSink
@@ -196,7 +197,11 @@ class CollectionRunner:
         evidence = self._collect_machines(eligible, known_latest, known_ids)
 
         states: dict[str, list[PolicyState]] = {}
+        extras: dict[str, dict[tuple[str, str, str], dict[str, Any]]] = {}
         summaries: dict[str, dict[str, Any]] = {}
+        assignment_meta: dict[str, list[dict[str, Any]]] = {}
+        exemption_meta: dict[str, list[dict[str, Any]]] = {}
+        defender: dict[str, tuple[bool, str | None, dict[str, object] | None, Any]] = {}
         classifier = FamilyClassifier(self._settings.policy_family_map)
         for sub in subs:
             try:
@@ -205,9 +210,10 @@ class CollectionRunner:
                 errors.append(_err("policyinsights-querystates", sub, exc))
                 continue
             parsed: list[PolicyState] = []
+            sub_extras: dict[tuple[str, str, str], dict[str, Any]] = {}
             for item in raw:
                 try:
-                    parsed.append(normalize_policy_state(item, classifier))
+                    state = normalize_policy_state(item, classifier)
                 except (NormalizationError, ValueError):
                     errors.append(
                         {
@@ -217,13 +223,55 @@ class CollectionRunner:
                             "status": "",
                         }
                     )
+                    continue
+                parsed.append(state)
+                key = (
+                    state.resource_id,
+                    state.policy_assignment_id,
+                    state.policy_definition_reference_id or "",
+                )
+                sub_extras[key] = estate.state_extras(item)
             states[sub] = parsed
+            extras[sub] = sub_extras
             try:
                 summaries[sub] = sources.summarize_policy(self._client, sub)
             except (ArmError, PagingError) as exc:
                 errors.append(_err("policyinsights-summarize", sub, exc))
+            try:
+                assignment_meta[sub] = [
+                    am
+                    for raw_a in sources.list_policy_assignments(self._client, sub)
+                    if (am := estate.normalize_assignment_meta(raw_a))
+                ]
+            except (ArmError, PagingError) as exc:
+                errors.append(_err("policy-assignments", sub, exc))
+            try:
+                exemption_meta[sub] = [
+                    em
+                    for raw_e in sources.list_policy_exemptions(self._client, sub)
+                    if (em := estate.normalize_exemption(raw_e))
+                ]
+            except (ArmError, PagingError) as exc:
+                errors.append(_err("policy-exemptions", sub, exc))
+            if self._settings.defender_enabled:
+                defender[sub] = self._collect_defender(sub)
+
+        inventory: list[dict[str, Any]] | None = None
+        if self._settings.estate_inventory_enabled:
+            try:
+                inv = sources.query_resource_graph(self._client, sources.RESOURCE_QUERY, subs)
+                inventory = [
+                    im
+                    for row in inv.rows[: sources.MAX_INVENTORY_ROWS]
+                    if (im := estate.normalize_inventory(row, self._settings.estate_tag_keys))
+                ]
+                if inv.truncated or len(inv.rows) > sources.MAX_INVENTORY_ROWS:
+                    errors.append(_entry("arg-query", "inventory", "Truncated"))
+            except (ArmError, PagingError) as exc:
+                errors.append(_err("arg-query", "inventory", exc))
 
         cutoff = retention_cutoff(started, self._settings.retention_months)
+        changes: dict[str, dict[str, Any]] = {}
         with self._session_factory() as session, session.begin():
             upsert_machines(session, machines.values(), started)
             touch_subscriptions(session, uncertain, started)
@@ -234,11 +282,37 @@ class CollectionRunner:
             reports = [r for e in evidence for r in e.reports if r.end_time >= cutoff]
             counts["reportsInserted"] = insert_reports(session, reports, run_id)
             for sub, items in states.items():
-                replace_policy_states(session, sub, items, run_id)
+                changes[sub] = replace_policy_states(session, sub, items, run_id, extras[sub])
+            for sub, rows in assignment_meta.items():
+                estate.replace_assignments(session, sub, rows, run_id)
+            for sub, rows in exemption_meta.items():
+                estate.replace_exemptions(session, sub, rows, run_id)
+            if inventory is not None:
+                counts["inventory"] = estate.replace_inventory(session, subs, inventory, run_id)
+            for sub, (ok, reason, score, standards) in defender.items():
+                estate.store_defender(session, run_id, started, sub, ok, reason, score, standards)
             counts["assignments"] = len(assignments)
             counts["policyStates"] = sum(len(v) for v in states.values())
+            counts["policyAssignments"] = sum(len(v) for v in assignment_meta.values())
+            counts["policyExemptions"] = sum(len(v) for v in exemption_meta.values())
         for e in evidence:
             errors.extend(e.errors)
+
+        wanted: dict[str, bool] = {}
+        for sub_extras in extras.values():
+            for ex in sub_extras.values():
+                if ex.get("initiative_id"):
+                    wanted[ex["initiative_id"]] = True
+        for items in states.values():
+            for s in items:
+                wanted.setdefault(s.policy_definition_id.lower(), False)
+        for rows in assignment_meta.values():
+            for a in rows:
+                if a["is_initiative"]:
+                    wanted[a["definition_id"]] = True
+        with self._session_factory() as session, session.begin():
+            meta = estate.resolve_metadata(session, self._client, started, wanted)
+        counts.update({f"definitions_{k}": v for k, v in meta.items()})
 
         status = "succeeded" if not errors else "partial"
         with self._session_factory() as session, session.begin():
@@ -251,10 +325,25 @@ class CollectionRunner:
                 bundle,
                 timedelta(hours=self._settings.freshness_hours),
             )
+            write_estate_snapshots(session, run_id, started, status, set(states), changes)
             purged = purge_history(session, started, self._settings.retention_months)
         counts.update({f"purged_{k}": v for k, v in purged.items()})
         counts["policySummaries"] = len(summaries)
         return status
+
+    def _collect_defender(self, sub: str) -> tuple[bool, str | None, dict[str, object] | None, Any]:
+        """Optional Microsoft Defender for Cloud posture; unavailable/unlicensed is not an error."""
+        try:
+            score = estate.normalize_secure_score(sources.list_secure_scores(self._client, sub))
+            standards = estate.normalize_standards(
+                sources.list_regulatory_standards(self._client, sub)
+            )
+        except (ArmError, PagingError) as exc:
+            kind = "AccessDenied" if isinstance(exc, ArmAccessDenied) else type(exc).__name__
+            return False, kind, None, None
+        if score is None and not standards:
+            return False, "NoData", None, None
+        return True, None, score, standards
 
     def _known_reports(self) -> tuple[dict[str, datetime], set[str]]:
         """Reports already stored with checks; reports without checks are fetched again."""

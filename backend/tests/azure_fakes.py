@@ -85,6 +85,16 @@ def raw_policy_state(s: dict[str, Any]) -> dict[str, Any]:
             "complianceState",
             "isCompliant",
             "timestamp",
+            "resourceType",
+            "resourceGroup",
+            "resourceLocation",
+            "policyAssignmentName",
+            "policyDefinitionName",
+            "policySetDefinitionId",
+            "policySetDefinitionName",
+            "policyDefinitionAction",
+            "policyDefinitionCategory",
+            "policyDefinitionGroupNames",
         )
     }
 
@@ -119,6 +129,14 @@ class FakeArm:
             return self._policy(path, query)
         if path.endswith("/policystates/latest/summarize"):
             return ArmResponse(200, {}, {"value": [{"results": {"nonCompliantResources": 0}}]})
+        if path.endswith("/policyassignments"):
+            return ArmResponse(200, {}, {"value": self.bundle.get("policyAssignments", [])})
+        if path.endswith("/policyexemptions"):
+            return ArmResponse(200, {}, {"value": self.bundle.get("policyExemptions", [])})
+        if "/policydefinitions/" in path or "/policysetdefinitions/" in path:
+            defs = self.bundle.get("policyDefinitions", {})
+            if path.rsplit("/", 1)[-1] in defs:
+                return ArmResponse(200, {}, defs[path.rsplit("/", 1)[-1]])
         if path.endswith("/guestconfigurationassignments"):
             machine = path[
                 : -len("/providers/microsoft.guestconfiguration/guestconfigurationassignments")

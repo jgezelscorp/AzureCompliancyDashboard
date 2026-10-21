@@ -16,6 +16,10 @@ _MACHINE = (
     rf"(?:microsoft\.compute/virtualmachines|microsoft\.hybridcompute/machines)/{_SEG}"
 )
 _GC = "/providers/microsoft.guestconfiguration/guestconfigurationassignments"
+# Built-in (tenant root), subscription-scoped or management-group-scoped definitions.
+_AUTHZ_SCOPE = (
+    rf"(?:/subscriptions/{_GUID}|/providers/microsoft\.management/managementgroups/{_SEG})?"
+)
 _PI = rf"/subscriptions/{_GUID}/providers/microsoft.policyinsights/policystates/latest"
 
 QUERY_PARAMS = frozenset(
@@ -63,6 +67,48 @@ RULES: tuple[SourceRule, ...] = (
         "2024-10-01",
         UNVERIFIED_PI,
         True,
+    ),
+    SourceRule(
+        "policy-assignments",
+        "GET",
+        rf"/subscriptions/{_GUID}/providers/microsoft\.authorization/policyassignments",
+        "2023-04-01",
+        VERIFIED,
+    ),
+    SourceRule(
+        "policy-exemptions",
+        "GET",
+        rf"/subscriptions/{_GUID}/providers/microsoft\.authorization/policyexemptions",
+        "2022-07-01-preview",
+        VERIFIED,
+    ),
+    SourceRule(
+        "policy-definition",
+        "GET",
+        rf"{_AUTHZ_SCOPE}/providers/microsoft\.authorization/policydefinitions/{_SEG}",
+        "2021-06-01",
+        VERIFIED,
+    ),
+    SourceRule(
+        "policy-set-definition",
+        "GET",
+        rf"{_AUTHZ_SCOPE}/providers/microsoft\.authorization/policysetdefinitions/{_SEG}",
+        "2021-06-01",
+        VERIFIED,
+    ),
+    SourceRule(
+        "defender-secure-scores",
+        "GET",
+        rf"/subscriptions/{_GUID}/providers/microsoft\.security/securescores",
+        "2020-01-01",
+        VERIFIED,
+    ),
+    SourceRule(
+        "defender-regulatory-standards",
+        "GET",
+        rf"/subscriptions/{_GUID}/providers/microsoft\.security/regulatorycompliancestandards",
+        "2019-01-01-preview",
+        VERIFIED,
     ),
     SourceRule("guestconfig-assignments", "GET", rf"{_MACHINE}{_GC}", "2024-04-05", VERIFIED),
     SourceRule(
