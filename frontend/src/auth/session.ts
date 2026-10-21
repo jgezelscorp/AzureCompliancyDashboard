@@ -1,5 +1,5 @@
 import { api, setTokenProvider } from "../api/client";
-import { authorizeUrl, challengeFor, randomString, tokenEndpoint } from "./pkce";
+import { authorizeUrl, challengeFor, logoutUrl, randomString, tokenEndpoint } from "./pkce";
 
 const PENDING_KEY = "acd.pkce";
 const EXPIRY_MARGIN_MS = 60_000;
@@ -11,6 +11,7 @@ interface Token {
 
 /** Access tokens live in memory only; only the short-lived PKCE verifier/state use sessionStorage. */
 let token: Token | null = null;
+let userName: string | null = null;
 
 export function isSignedIn(now = Date.now()): boolean {
   return token !== null && token.expiresAt - EXPIRY_MARGIN_MS > now;
@@ -61,6 +62,7 @@ export async function completeSignInIfCallback(): Promise<boolean> {
   if (!res.ok) throw new Error(`Token request failed with ${res.status}`);
   const body = (await res.json()) as { access_token: string; expires_in: number };
   token = { value: body.access_token, expiresAt: Date.now() + body.expires_in * 1000 };
+  userName = nameFromToken(body.access_token);
   return true;
 }
 
@@ -76,4 +78,33 @@ export function registerSessionTokenProvider(): void {
 
 export function signOutLocal(): void {
   token = null;
+  userName = null;
+}
+
+/** Display name from the token claims; the token is only decoded for display, never trusted. */
+export function currentUserName(): string | null {
+  return isSignedIn() ? userName : null;
+}
+
+function nameFromToken(jwt: string): string | null {
+  try {
+    const payload = jwt.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/");
+    if (!payload) return null;
+    const claims = JSON.parse(atob(payload)) as Record<string, unknown>;
+    for (const key of ["name", "preferred_username", "upn", "email"]) {
+      const v = claims[key];
+      if (typeof v === "string" && v) return v;
+    }
+  } catch {
+    // opaque or malformed token: no display name
+  }
+  return null;
+}
+
+/** Clears the session and the sessionStorage state, then ends the Entra session. */
+export async function signOut(): Promise<void> {
+  signOutLocal();
+  sessionStorage.removeItem(PENDING_KEY);
+  const cfg = await api.authConfig();
+  window.location.assign(logoutUrl(cfg.authority, window.location.origin));
 }

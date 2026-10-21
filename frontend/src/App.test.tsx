@@ -38,6 +38,17 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText(/Coverage gaps/i).length).toBeGreaterThan(0));
   });
 
+  it("shows a landing screen with a Sign in button instead of a dashboard when signed out", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App api={createMockApi()} skipAuth={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("heading", { name: /sign in to view/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /sign in/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "CISO" })).not.toBeInTheDocument();
+  });
+
   it("explains 403 without leaking data", async () => {
     renderAt("/ciso", failing(403));
     expect(await screen.findByRole("alert")).toHaveTextContent(/access denied/i);

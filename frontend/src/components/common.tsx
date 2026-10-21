@@ -14,9 +14,14 @@ export function ToneBadge({ tone, label }: { tone: Tone; label?: string }) {
 
 export function Loading({ what }: { what: string }) {
   return (
-    <p role="status" className="state">
-      Loading {what}…
-    </p>
+    <div role="status" className="state state-loading">
+      <p>Loading {what}…</p>
+      <div className="skeleton-row" aria-hidden="true">
+        <span className="skeleton" />
+        <span className="skeleton" />
+        <span className="skeleton" />
+      </div>
+    </div>
   );
 }
 
