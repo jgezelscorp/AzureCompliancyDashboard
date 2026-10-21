@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/report.schema.json",
+  "title": "Guest configuration assignment report with normalized checks",
+  "type": "object",
+  "required": ["reportId", "assignmentId", "machineId", "baselineFamily", "complianceStatus", "startTime", "endTime", "checks"],
+  "properties": {
+    "reportId": { "type": "string", "minLength": 1 },
+    "assignmentId": { "type": "string", "minLength": 1 },
+    "machineId": { "type": "string", "minLength": 1 },
+    "baselineFamily": { "$ref": "common.schema.json#/$defs/baselineFamily" },
+    "complianceStatus": { "$ref": "common.schema.json#/$defs/complianceState" },
+    "startTime": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "endTime": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "operationType": { "type": "string" },
+    "configurationVersion": { "type": ["string", "null"] },
+    "checks": {
+      "type": "array",
+      "description": "One entry per unique check. Reasons live inside a check and are never counted as checks.",
+      "items": { "$ref": "check.schema.json" }
+    },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/schemas/assignment.schema.json",
+  "title": "Guest configuration (Machine Configuration) assignment",
+  "type": "object",
+  "required": ["assignmentId", "machineId", "baselineFamily", "guestConfigurationName", "complianceStatus"],
+  "properties": {
+    "assignmentId": { "type": "string", "minLength": 1 },
+    "machineId": { "type": "string", "minLength": 1 },
+    "baselineFamily": { "$ref": "common.schema.json#/$defs/baselineFamily" },
+    "guestConfigurationName": { "type": "string", "minLength": 1 },
+    "guestConfigurationVersion": { "type": ["string", "null"], "description": "Resolved package version; a selector such as 1.* is not a resolved version." },
+    "policyDefinitionId": { "type": ["string", "null"] },
+    "policyDefinitionVersion": { "type": ["string", "null"] },
+    "policyAssignmentId": { "type": ["string", "null"] },
+    "assignmentHash": { "type": ["string", "null"] },
+    "parameterHash": { "type": ["string", "null"] },
+    "contentHash": { "type": ["string", "null"] },
+    "includeArcMachines": { "type": ["boolean", "null"] },
+    "complianceStatus": { "$ref": "common.schema.json#/$defs/complianceState" },
+    "lastComplianceStatusChecked": { "$ref": "common.schema.json#/$defs/nullableTimestamp" },
+    "synthetic": { "$ref": "common.schema.json#/$defs/syntheticMarker" }
+  },
+  "additionalProperties": false
+}
