@@ -2,8 +2,8 @@
 // Review with `az deployment group what-if` before every create. Nothing here contains IDs or secrets.
 //
 // Two-phase deployment (see docs/operations.md):
-//   1. deployApps = false: identities, VNet, Key Vault, ACR, private PostgreSQL, Container Apps environment.
-//      Then build images with `az acr build` and set the Key Vault secret `api-client-secret`.
+//   1. deployApps = false: identities, VNet, ACR, private PostgreSQL, Container Apps environment.
+//      Then build images with `az acr build` and create the Entra app registrations.
 //   2. deployApps = true: migration job, API (internal), worker, web (public, TLS).
 // Postgres is reachable only through the VNet (private access); only the web app has public ingress.
 targetScope = 'resourceGroup'
@@ -14,7 +14,7 @@ targetScope = 'resourceGroup'
 param namePrefix string = 'acd'
 param location string = resourceGroup().location
 
-@description('Deploy the container apps and migration job (phase 2). Requires images in the registry and the Key Vault secret api-client-secret.')
+@description('Deploy the container apps and migration job (phase 2). Requires images in the registry and a value for apiClientSecret.')
 param deployApps bool = false
 
 @description('Backend image, e.g. <registry>.azurecr.io/acd-backend:<tag>. Required when deployApps is true.')
@@ -37,10 +37,14 @@ param logsIngestionEndpoint string = ''
 @description('Optional DCR immutable id (ACD_LOGS_DCR_IMMUTABLE_ID).')
 param logsDcrImmutableId string = ''
 
+@secure()
+@description('Client secret of the API app registration (OBO exchange). Stored only as a Container Apps secret; required when deployApps is true.')
+param apiClientSecret string = ''
+
 @description('PostgreSQL administrator login.')
 param pgAdminLogin string = 'acdadmin'
 @secure()
-@description('PostgreSQL administrator password (letters and digits only, so it can be embedded in the URL). Stored only in Key Vault.')
+@description('PostgreSQL administrator password (letters and digits only, so it can be embedded in the URL). Stored only as a Container Apps secret.')
 param pgAdminPassword string
 @description('PostgreSQL compute SKU (Burstable).')
 param pgSkuName string = 'Standard_B1ms'
@@ -51,13 +55,11 @@ param webAllowedCidrs array = []
 
 var uniq = uniqueString(resourceGroup().id)
 var acrName = '${namePrefix}acr${uniq}'
-var kvName = '${namePrefix}-kv-${take(uniq, 6)}'
 var pgName = '${namePrefix}-pg-${uniq}'
 var pgDnsZone = '${namePrefix}-${take(uniq, 6)}.private.postgres.database.azure.com'
 var dbName = 'acd'
 
 var acrPullRole = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-var kvSecretsUserRole = '4633458b-17de-408a-b874-0445c86b69e6'
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logAnalyticsWorkspaceName
@@ -82,18 +84,6 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   properties: { adminUserEnabled: false }
 }
 
-resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: kvName
-  location: location
-  properties: {
-    tenantId: tenant().tenantId
-    sku: { family: 'A', name: 'standard' }
-    enableRbacAuthorization: true
-    enableSoftDelete: true
-    softDeleteRetentionInDays: 7
-  }
-}
-
 resource acrPullApi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: acr
   name: guid(acr.id, apiIdentity.id, acrPullRole)
@@ -109,26 +99,6 @@ resource acrPullCollector 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   name: guid(acr.id, collectorIdentity.id, acrPullRole)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRole)
-    principalId: collectorIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource kvUserApi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: kv
-  name: guid(kv.id, apiIdentity.id, kvSecretsUserRole)
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRole)
-    principalId: apiIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource kvUserCollector 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: kv
-  name: guid(kv.id, collectorIdentity.id, kvSecretsUserRole)
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRole)
     principalId: collectorIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
@@ -202,14 +172,6 @@ resource pgDatabase 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12
   name: dbName
 }
 
-resource databaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
-  name: 'database-url'
-  properties: {
-    value: 'postgresql+psycopg://${pgAdminLogin}:${pgAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${dbName}?sslmode=require'
-  }
-}
-
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${namePrefix}-env'
   location: location
@@ -263,13 +225,7 @@ var apiEnv = concat(
   [{ name: 'ACD_AUTH_API_CLIENT_SECRET', secretRef: 'api-client-secret' }]
 )
 
-var kvSecretsApi = [
-  { name: 'database-url', keyVaultUrl: '${kv.properties.vaultUri}secrets/database-url', identity: apiIdentity.id }
-  { name: 'api-client-secret', keyVaultUrl: '${kv.properties.vaultUri}secrets/api-client-secret', identity: apiIdentity.id }
-]
-var kvSecretsCollector = [
-  { name: 'database-url', keyVaultUrl: '${kv.properties.vaultUri}secrets/database-url', identity: collectorIdentity.id }
-]
+var databaseUrl = 'postgresql+psycopg://${pgAdminLogin}:${pgAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${dbName}?sslmode=require'
 
 resource migrate 'Microsoft.App/jobs@2024-03-01' = if (deployApps) {
   name: '${namePrefix}-migrate'
@@ -286,7 +242,7 @@ resource migrate 'Microsoft.App/jobs@2024-03-01' = if (deployApps) {
       replicaTimeout: 600
       replicaRetryLimit: 1
       manualTriggerConfig: { parallelism: 1, replicaCompletionCount: 1 }
-      secrets: kvSecretsCollector
+      secrets: [{ name: 'database-url', value: databaseUrl }]
       registries: [{ server: acr.properties.loginServer, identity: collectorIdentity.id }]
     }
     template: {
@@ -301,7 +257,7 @@ resource migrate 'Microsoft.App/jobs@2024-03-01' = if (deployApps) {
       ]
     }
   }
-  dependsOn: [acrPullCollector, kvUserCollector, databaseUrlSecret, pgDatabase]
+  dependsOn: [acrPullCollector, pgDatabase]
 }
 
 resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
@@ -317,7 +273,10 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
     configuration: {
       // Internal only: reached by the web app inside the environment over plain HTTP, never exposed publicly.
       ingress: { external: false, targetPort: 8000, transport: 'http', allowInsecure: true }
-      secrets: kvSecretsApi
+      secrets: [
+        { name: 'database-url', value: databaseUrl }
+        { name: 'api-client-secret', value: apiClientSecret }
+      ]
       registries: [{ server: acr.properties.loginServer, identity: apiIdentity.id }]
     }
     template: {
@@ -336,7 +295,7 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
       scale: { minReplicas: 1, maxReplicas: 2 }
     }
   }
-  dependsOn: [acrPullApi, kvUserApi, databaseUrlSecret]
+  dependsOn: [acrPullApi]
 }
 
 // One worker replica: collection runs are also serialised by a database advisory lock.
@@ -351,7 +310,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
     managedEnvironmentId: env.id
     workloadProfileName: 'Consumption'
     configuration: {
-      secrets: kvSecretsCollector
+      secrets: [{ name: 'database-url', value: databaseUrl }]
       registries: [{ server: acr.properties.loginServer, identity: collectorIdentity.id }]
     }
     template: {
@@ -367,7 +326,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
       scale: { minReplicas: 1, maxReplicas: 1 }
     }
   }
-  dependsOn: [acrPullCollector, kvUserCollector, databaseUrlSecret]
+  dependsOn: [acrPullCollector, pgDatabase]
 }
 
 resource frontend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
@@ -415,7 +374,6 @@ resource frontend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
 
 output acrName string = acr.name
 output acrLoginServer string = acr.properties.loginServer
-output keyVaultName string = kv.name
 output postgresServerName string = pg.name
 output environmentDefaultDomain string = env.properties.defaultDomain
 output webFqdn string = '${namePrefix}-web.${env.properties.defaultDomain}'

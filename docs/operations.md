@@ -75,13 +75,13 @@ Notes: store dumps encrypted and off-host; they contain compliance evidence and 
 
 ## Azure Container Apps (consumption)
 
-`infra/bicep/containerapps/main.bicep` deploys: user-assigned identities (`<prefix>-api-id`, `<prefix>-collector-id`), ACR Basic (admin user off, `AcrPull` for the identities), Key Vault (RBAC, holds `database-url` and `api-client-secret`; apps read them through Key Vault references), a VNet, PostgreSQL Flexible Server 16 Burstable with **private access only**, a Container Apps environment (workload-profiles, Consumption) logging to an existing Log Analytics workspace, a manual migration Job, an internal API app, one worker and the public web app (TLS, optional `webAllowedCidrs`). It is not deployed by CI; CI only runs `az bicep build`. Always `what-if` first.
+`infra/bicep/containerapps/main.bicep` deploys: user-assigned identities (`<prefix>-api-id`, `<prefix>-collector-id`), ACR Basic (admin user off, `AcrPull` for the identities), a VNet, PostgreSQL Flexible Server 16 Burstable with **private access only**, a Container Apps environment (workload-profiles, Consumption) logging to an existing Log Analytics workspace, a manual migration Job, an internal API app, one worker and the public web app (TLS, optional `webAllowedCidrs`). It is not deployed by CI; CI only runs `az bicep build`. Always `what-if` first.
 
 Two phases (`deployApps`):
 
-1. `az deployment group what-if|create -g <rg> -f infra/bicep/containerapps/main.bicep -p deployApps=false logAnalyticsWorkspaceName=<law> pgAdminPassword=<generated, alphanumeric>`.
+1. `az deployment group what-if|create -g <rg> -f infra/bicep/containerapps/main.bicep -p deployApps=false logAnalyticsWorkspaceName=<law> pgAdminPassword=<generated, alphanumeric>` (the database URL is built in the template and kept only as a Container Apps secret; Key Vault is not used because tenant policy may disable its public access).
 2. Build images: `az acr build -r <acr> -t acd-backend:<tag> backend` and `az acr build -r <acr> -t acd-frontend:<tag> --build-arg BACKEND_UPSTREAM=http://<prefix>-api frontend` (the web nginx proxies `/api` to the internal API app by name).
-3. Create the Entra app registrations, put the API client secret into Key Vault as `api-client-secret` (the OBO exchange needs a secret; it is never in the repo or logs), and rerun the deployment with `deployApps=true backendImage=... frontendImage=... tenantId=... subscriptionIds=... authApiClientId=... authSpaClientId=...`.
+3. Create the Entra app registrations, pass the API client secret as the secure parameter `apiClientSecret` (the OBO exchange needs a secret; it becomes a Container Apps secret and is never in the repo or logs), and rerun the deployment with `deployApps=true backendImage=... frontendImage=... tenantId=... subscriptionIds=... authApiClientId=... authSpaClientId=...`.
 4. Run the migration job: `az containerapp job start -g <rg> -n <prefix>-migrate`, check the execution succeeded, then verify `/healthz` and `/readyz`.
 5. Grant the collector identity (`collectorPrincipalId` output) read access with `infra/bicep/containerapps/rbac-subscription.bicep` (Reader; it already includes Policy Insights and guest configuration reads) and, if the history sink is used, Monitoring Metrics Publisher on the DCR (`ingestionPrincipalObjectId` of `infra/bicep/reporting`).
 
