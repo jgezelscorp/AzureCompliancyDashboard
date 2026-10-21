@@ -43,3 +43,8 @@ export function authorizeUrl(p: AuthorizeParams): string {
 export function tokenEndpoint(authority: string): string {
   return `${authority}/oauth2/v2.0/token`;
 }
+
+export function logoutUrl(authority: string, postLogoutRedirectUri: string): string {
+  const q = new URLSearchParams({ post_logout_redirect_uri: postLogoutRedirectUri });
+  return `${authority}/oauth2/v2.0/logout?${q.toString()}`;
+}

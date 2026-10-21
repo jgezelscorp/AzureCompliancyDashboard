@@ -11,7 +11,14 @@ vi.mock("../api/client", () => ({
   setTokenProvider: vi.fn(),
 }));
 
-import { completeSignInIfCallback, isSignedIn, signIn, signOutLocal } from "./session";
+import {
+  completeSignInIfCallback,
+  currentUserName,
+  isSignedIn,
+  signIn,
+  signOut,
+  signOutLocal,
+} from "./session";
 
 const originalLocation = window.location;
 
@@ -103,6 +110,26 @@ describe("PKCE sign-in session", () => {
     setLocation("?code=c&state=s1");
     await expect(completeSignInIfCallback()).rejects.toThrow(/400/);
     expect(isSignedIn()).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the token's display name and signs out through the Entra logout redirect", async () => {
+    const payload = btoa(JSON.stringify({ name: "Test User" }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ access_token: `h.${payload}.s`, expires_in: 3600 })),
+    );
+    sessionStorage.setItem("acd.pkce", JSON.stringify({ verifier: "v", state: "s1" }));
+    setLocation("?code=c&state=s1");
+    await completeSignInIfCallback();
+    expect(currentUserName()).toBe("Test User");
+    const assign = setLocation("");
+    await signOut();
+    expect(isSignedIn()).toBe(false);
+    expect(currentUserName()).toBeNull();
+    const target = new URL(assign.mock.calls[0][0] as string);
+    expect(target.pathname).toMatch(/\/oauth2\/v2\.0\/logout$/);
+    expect(target.searchParams.get("post_logout_redirect_uri")).toBe("https://app.example.invalid");
     vi.unstubAllGlobals();
   });
 
