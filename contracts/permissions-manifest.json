@@ -1,0 +1,59 @@
+{
+  "manifestVersion": "0.1.0",
+  "workPackage": "I04",
+  "description": "RBAC action names the application evaluates or relies on. Every action named in backend code must be listed here. 'verified' means confirmed against Azure documentation or a live contract spike; unverified names must be confirmed before release.",
+  "viewerReadActions": [
+    {
+      "action": "Microsoft.Authorization/policyAssignments/read",
+      "purpose": "Viewer may see policy assignments on the subscription",
+      "verified": true
+    },
+    {
+      "action": "Microsoft.Compute/virtualMachines/read",
+      "purpose": "Viewer may see Azure VM inventory",
+      "verified": true
+    },
+    {
+      "action": "Microsoft.HybridCompute/machines/read",
+      "purpose": "Viewer may see Azure Arc machine inventory",
+      "verified": true
+    },
+    {
+      "action": "Microsoft.GuestConfiguration/guestConfigurationAssignments/read",
+      "purpose": "Viewer may see guest configuration assignments and reports",
+      "verified": false,
+      "note": "Name inferred from the resource provider; confirm via Get-AzProviderOperation before release."
+    }
+  ],
+  "configEditActions": [
+    {
+      "action": "Microsoft.Resources/deployments/write",
+      "scope": "anchor resource group",
+      "purpose": "Capability mapping for shared configuration editing; checked via Microsoft.Authorization/permissions, never exercised as a probe",
+      "verified": true,
+      "gate": "Deny-assignment, condition and PIM behaviour of the permissions API must pass the I10 acceptance gate before shared editing is enabled in production."
+    }
+  ],
+  "armEndpoints": [
+    {
+      "id": "authorization-permissions-rg",
+      "sourceManifestId": "authorization-permissions-rg",
+      "apiVersion": "2022-04-01",
+      "verified": true
+    },
+    {
+      "id": "authorization-permissions-subscription",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/permissions",
+      "apiVersion": "2022-04-01",
+      "verified": false,
+      "note": "Subscription-scope variant of the permissions endpoint; not yet in source-manifest.json."
+    },
+    {
+      "id": "subscriptions-list",
+      "pathTemplate": "/subscriptions",
+      "apiVersion": "2022-12-01",
+      "verified": false,
+      "note": "Lists subscriptions visible to the delegated token; not yet in source-manifest.json."
+    }
+  ]
+}
