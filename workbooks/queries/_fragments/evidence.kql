@@ -10,6 +10,6 @@ let evidence = machines
         isnull(reportEnd), 'UnknownAge',
         ageSeconds <= 86400, 'Fresh',
         'Stale')
-    | extend reportedState = iff(hasReport == true, reportState, '')
+    | extend reportedState = iff(hasReport == true and quality != 'UnknownApplicability', reportState, '')
     | extend green = quality == 'Fresh' and reportedState == 'Compliant'
     | project machineId, machineName, kind, subscriptionId, resourceGroup, location, osType, eligibility, family, assignmentId, gcVersion, hasReport, reportEnd, ageSeconds, quality, reportedState, green, resources;
