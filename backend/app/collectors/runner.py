@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import exists, func, select, text
 from sqlalchemy.orm import Session
 
 from app.azure.client import ArmAccessDenied, ArmClient, ArmError, PagingError
@@ -31,7 +31,7 @@ from app.collectors.persist import (
     upsert_machines,
 )
 from app.config import Settings
-from app.db import CollectionRunRow, ReportRow
+from app.db import CheckRow, CollectionRunRow, ReportRow
 from app.metrics.store import load_bundle, write_snapshots
 from app.models import Assignment, Machine, PolicyState, Report
 from app.sink.service import LogsSink
@@ -257,13 +257,15 @@ class CollectionRunner:
         return status
 
     def _known_reports(self) -> tuple[dict[str, datetime], set[str]]:
+        """Reports already stored with checks; reports without checks are fetched again."""
+        has_checks = exists().where(CheckRow.report_id == ReportRow.report_id)
         with self._session_factory() as session:
             rows = session.execute(
-                select(ReportRow.assignment_id, func.max(ReportRow.end_time)).group_by(
-                    ReportRow.assignment_id
-                )
+                select(ReportRow.assignment_id, func.max(ReportRow.end_time))
+                .where(has_checks)
+                .group_by(ReportRow.assignment_id)
             ).all()
-            ids = set(session.scalars(select(ReportRow.report_id)))
+            ids = set(session.scalars(select(ReportRow.report_id).where(has_checks)))
         return {a: _utc(t) for a, t in rows}, ids
 
     def _collect_machines(

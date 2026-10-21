@@ -117,8 +117,21 @@ def _check_status(value: Any) -> str:
     return "NonCompliant"  # false, unknown or malformed is never treated as passing
 
 
+def _check_key(item: dict[str, Any]) -> str | None:
+    """Machine Configuration reports carry the check name in ``properties.ResourceId``."""
+    key = _str(item.get("resourceId"))
+    if key:
+        return key
+    props = item.get("properties")
+    if isinstance(props, dict):
+        for k, v in props.items():
+            if k.lower() == "resourceid":
+                return _str(v)
+    return None
+
+
 def normalize_checks(details: Any) -> list[Check]:
-    """One check per unique resourceId; reasons are attached, never counted.
+    """One check per unique resource id; reasons are attached, never counted.
 
     Duplicate keys keep the worst status so a repeated entry cannot hide a failure.
     """
@@ -127,7 +140,7 @@ def normalize_checks(details: Any) -> list[Check]:
     for item in resources or []:
         if not isinstance(item, dict):
             continue
-        key = _str(item.get("resourceId"))
+        key = _check_key(item)
         if not key:
             continue
         reasons = [

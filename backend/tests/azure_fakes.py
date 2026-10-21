@@ -62,8 +62,8 @@ def raw_report(r: dict[str, Any], with_details: bool) -> dict[str, Any]:
         props["details"] = {
             "resources": [
                 {
-                    "resourceId": c["checkKey"],
-                    "complianceStatus": c["complianceStatus"] == "Compliant",
+                    "properties": {"ResourceId": c["checkKey"], "Message": "truncated"},
+                    "complianceStatus": c["complianceStatus"],
                     "reasons": [
                         {"phrase": x["phrase"], "code": x.get("code")} for x in c["reasons"]
                     ],

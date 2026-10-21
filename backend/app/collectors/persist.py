@@ -67,11 +67,34 @@ def upsert_assignments(session: Session, assignments: Iterable[Assignment], run_
         row.run_id = run_id
 
 
+def _add_checks(session: Session, report: Report) -> None:
+    for c in report.checks:
+        session.add(
+            CheckRow(
+                report_id=report.report_id,
+                check_key=c.check_key,
+                name=c.name,
+                compliance_status=c.compliance_status,
+                category=c.category,
+                severity=c.severity,
+                benchmark_control_id=c.benchmark_control_id,
+                reasons=[x.model_dump() for x in c.reasons],
+            )
+        )
+
+
 def insert_reports(session: Session, reports: Iterable[Report], run_id: int) -> int:
-    """Reports are immutable upstream: an existing report id is skipped (checks included)."""
+    """Reports are immutable upstream: an existing report id is skipped.
+
+    An existing report that has no stored checks (e.g. written by an older parser) gets its
+    checks filled in; it is not counted as inserted.
+    """
     inserted = 0
     for r in reports:
         if session.get(ReportRow, r.report_id) is not None:
+            has_checks = session.scalar(select(exists().where(CheckRow.report_id == r.report_id)))
+            if not has_checks and r.checks:
+                _add_checks(session, r)
             continue
         session.add(
             ReportRow(
@@ -88,19 +111,7 @@ def insert_reports(session: Session, reports: Iterable[Report], run_id: int) -> 
             )
         )
         session.flush()
-        for c in r.checks:
-            session.add(
-                CheckRow(
-                    report_id=r.report_id,
-                    check_key=c.check_key,
-                    name=c.name,
-                    compliance_status=c.compliance_status,
-                    category=c.category,
-                    severity=c.severity,
-                    benchmark_control_id=c.benchmark_control_id,
-                    reasons=[x.model_dump() for x in c.reasons],
-                )
-            )
+        _add_checks(session, r)
         inserted += 1
     return inserted
 
