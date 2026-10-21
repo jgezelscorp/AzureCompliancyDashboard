@@ -1,11 +1,13 @@
 import re
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 GUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+DCR_ID_RE = re.compile(r"^dcr-[0-9a-f]{32}$", re.I)
 PLACEHOLDER_GUID = "00000000-0000-0000-0000-000000000000"
 
 
@@ -30,6 +32,16 @@ class Settings(BaseSettings):
     collection_concurrency: int = Field(default=4, ge=1, le=16)
     collection_run_timeout_minutes: int = Field(default=180, ge=5)
     arm_max_retries: int = Field(default=5, ge=0, le=10)
+    # Optional Log Analytics reporting sink (I08). Off by default; the app never needs it.
+    logs_sink_enabled: bool = False
+    logs_ingestion_endpoint: str = ""
+    logs_dcr_immutable_id: str = ""
+    logs_batch_max_bytes: int = Field(default=900_000, ge=10_000, le=1_000_000)
+    logs_batch_max_records: int = Field(default=2000, ge=1, le=10_000)
+    logs_max_attempts: int = Field(default=12, ge=1, le=100)
+    logs_retry_max_minutes: int = Field(default=360, ge=1, le=1440)
+    logs_delivered_keep_days: int = Field(default=7, ge=1, le=365)
+    logs_max_records_per_drain: int = Field(default=50_000, ge=1)
     # "<policyDefinitionGuidOrId>=<BaselineFamily>,..."; unmapped policy states stay unclassified
     policy_family_map: Annotated[dict[str, str], NoDecode] = Field(default_factory=dict)
 
@@ -77,6 +89,27 @@ class Settings(BaseSettings):
         if not v.startswith("postgresql"):
             raise ValueError("database_url must be a PostgreSQL URL")
         return v
+
+    @model_validator(mode="after")
+    def _logs_sink_requirements(self) -> "Settings":
+        if not self.logs_sink_enabled:
+            return self
+        parts = urlsplit(self.logs_ingestion_endpoint)
+        host = (parts.hostname or "").lower()
+        if (
+            parts.scheme != "https"
+            or not host.endswith(".ingest.monitor.azure.com")
+            or parts.username
+            or parts.password
+            or parts.port
+            or parts.path not in ("", "/")
+        ):
+            raise ValueError(
+                "logs_ingestion_endpoint must be an https *.ingest.monitor.azure.com origin"
+            )
+        if not DCR_ID_RE.match(self.logs_dcr_immutable_id):
+            raise ValueError("logs_dcr_immutable_id must look like dcr-<32 hex characters>")
+        return self
 
     @model_validator(mode="after")
     def _production_requirements(self) -> "Settings":

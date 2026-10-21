@@ -150,6 +150,33 @@ def fresh_checks(evidence):
     return out
 
 
+def logs_fresh_checks(runs, reports, checks):
+    """Model of workbooks/queries/_fragments/logs_fresh.kql over de-duplicated Logs rows."""
+    latest_snapshot = max(r["TimeGenerated"] for r in runs)
+    end = {}
+    for r in reports:
+        k = (r["MachineId"], r["Family"])
+        end[k] = max(end.get(k, r["ReportEndTime"]), r["ReportEndTime"])
+    latest = {}
+    for r in reports:
+        k = (r["MachineId"], r["Family"])
+        if r["ReportEndTime"] == end[k]:
+            latest[k] = min(latest.get(k, r["ReportId"]), r["ReportId"])
+    deduped = {}
+    for c in checks:
+        deduped.setdefault((c["ReportId"], c["CheckKey"]), c)  # take_any by key
+    out = []
+    for (machine, family), report_id in latest.items():
+        if end[(machine, family)] < latest_snapshot - timedelta(hours=24):
+            continue
+        for (rid, key), c in deduped.items():
+            if rid == report_id:
+                out.append({"machineId": machine, "family": family, "checkKey": key,
+                            "checkStatus": c["ComplianceStatus"],
+                            "category": c.get("Category") or "Uncategorized"})
+    return out
+
+
 def pct(num, den):
     return None if den == 0 else round(100.0 * num / den, 2)
 

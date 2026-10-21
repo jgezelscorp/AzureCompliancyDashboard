@@ -4,7 +4,7 @@
   {
    "type": 1,
    "content": {
-    "json": "# Azure Policy and Machine Configuration compliance (live)\n\nLive view from Azure Resource Graph using **your** Azure identity and the selected scope. This workbook is read-only and reports Azure Policy / Machine Configuration results; it is **not** a CIS (or any other) certification or attestation.\n\nThree different measures are always shown separately and never blended: **Azure Policy compliance %**, **check pass rate** and **coverage**. Stale, unknown-age, missing or no-data evidence is never shown as compliant."
+    "json": "# Azure Policy and Machine Configuration compliance (live)\n\nLive view from Azure Resource Graph using **your** Azure identity and the selected scope. This workbook is read-only and reports Azure Policy / Machine Configuration results; it is **not** a CIS (or any other) certification or attestation.\n\nThree different measures are always shown separately and never blended: **Azure Policy compliance %**, **check pass rate** and **coverage**. Stale, unknown-age, missing or no-data evidence is never shown as compliant.\n\nAll tabs except **History / Enhanced** are live and need nothing but Azure RBAC read access. The History tab is optional: it reads stored snapshots from a Log Analytics workspace that the standalone collector fills, and works only when that workspace is selected."
    },
    "name": "intro"
   },
@@ -73,6 +73,62 @@
       "typeSettings": {
        "additionalResourceOptions": [],
        "showDefault": false
+      }
+     },
+     {
+      "id": "param-Workspace",
+      "version": "KqlParameterItem/1.0",
+      "name": "Workspace",
+      "label": "Log Analytics workspace (History tab, optional)",
+      "type": 5,
+      "isRequired": false,
+      "multiSelect": false,
+      "value": "",
+      "queryType": 1,
+      "resourceType": "microsoft.resourcegraph/resources",
+      "crossComponentResources": [
+       "{Subscriptions}"
+      ],
+      "query": "resources\n| where type =~ 'microsoft.operationalinsights/workspaces'\n| project value = id, label = name\n| order by label asc",
+      "typeSettings": {
+       "additionalResourceOptions": [],
+       "showDefault": false
+      },
+      "isGlobal": true
+     },
+     {
+      "id": "param-TimeRange",
+      "version": "KqlParameterItem/1.0",
+      "name": "TimeRange",
+      "label": "Time range (History tab)",
+      "type": 4,
+      "isRequired": true,
+      "value": {
+       "durationMs": 2592000000
+      },
+      "isGlobal": true,
+      "typeSettings": {
+       "selectableValues": [
+        {
+         "durationMs": 86400000
+        },
+        {
+         "durationMs": 604800000
+        },
+        {
+         "durationMs": 2592000000
+        },
+        {
+         "durationMs": 7776000000
+        },
+        {
+         "durationMs": 31536000000
+        },
+        {
+         "durationMs": 34560000000
+        }
+       ],
+       "allowCustom": true
       }
      },
      {
@@ -209,6 +265,15 @@
       "subTarget": "evidence",
       "preText": "",
       "style": "link"
+     },
+     {
+      "id": "tab-history",
+      "cellValue": "tab",
+      "linkTarget": "parameter",
+      "linkLabel": "History / Enhanced (Log Analytics)",
+      "subTarget": "history",
+      "preText": "",
+      "style": "link"
      }
     ]
    },
@@ -245,12 +310,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-policy",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-policy"
+   }
   },
   {
    "type": 1,
@@ -283,12 +348,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-checks",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-checks"
+   }
   },
   {
    "type": 1,
@@ -321,12 +386,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-coverage",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-coverage"
+   }
   },
   {
    "type": 1,
@@ -362,12 +427,12 @@
      "showLegend": true
     }
    },
+   "name": "query - ovw-quality",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-quality"
+   }
   },
   {
    "type": 3,
@@ -388,12 +453,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-quality-table",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-quality-table"
+   }
   },
   {
    "type": 1,
@@ -429,12 +494,12 @@
      "showLegend": true
     }
    },
+   "name": "query - ovw-age",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-age"
+   }
   },
   {
    "type": 3,
@@ -455,12 +520,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-age-table",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-age-table"
+   }
   },
   {
    "type": 1,
@@ -493,12 +558,12 @@
      "sortBy": []
     }
    },
+   "name": "query - ovw-inventory",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "overview"
-   },
-   "name": "query - ovw-inventory"
+   }
   },
   {
    "type": 1,
@@ -531,12 +596,12 @@
      "sortBy": []
     }
    },
+   "name": "query - base-compare",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "baselines"
-   },
-   "name": "query - base-compare"
+   }
   },
   {
    "type": 1,
@@ -569,12 +634,12 @@
      "sortBy": []
     }
    },
+   "name": "query - base-versions",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "baselines"
-   },
-   "name": "query - base-versions"
+   }
   },
   {
    "type": 1,
@@ -620,12 +685,12 @@
      }
     ]
    },
+   "name": "query - cat-summary",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "categories"
-   },
-   "name": "query - cat-summary"
+   }
   },
   {
    "type": 1,
@@ -666,12 +731,12 @@
      }
     ]
    },
+   "name": "query - cat-checks",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "categories"
-   },
-   "name": "query - cat-checks"
+   }
   },
   {
    "type": 1,
@@ -717,12 +782,12 @@
      }
     ]
    },
+   "name": "query - check-list",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "checks"
-   },
-   "name": "query - check-list"
+   }
   },
   {
    "type": 1,
@@ -755,12 +820,12 @@
      "sortBy": []
     }
    },
+   "name": "query - check-reasons",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "checks"
-   },
-   "name": "query - check-reasons"
+   }
   },
   {
    "type": 1,
@@ -806,12 +871,12 @@
      }
     ]
    },
+   "name": "query - machine-list",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "machines"
-   },
-   "name": "query - machine-list"
+   }
   },
   {
    "type": 1,
@@ -844,12 +909,12 @@
      "sortBy": []
     }
    },
+   "name": "query - machine-checks",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "machines"
-   },
-   "name": "query - machine-checks"
+   }
   },
   {
    "type": 1,
@@ -866,7 +931,7 @@
   {
    "type": 1,
    "content": {
-    "json": "### Evidence and limitations\n\n- **Live mode only.** Resource Graph holds the latest indexed state. There is no durable history, so no posture trend is shown. Stored snapshots need the enhanced mode (Log Analytics) or the standalone app.\n- **Resource Graph is a projection.** It can lag, scrubs some data and is not guaranteed to expose every report property (completeness, expected/actual values, history). Verify against the Machine Configuration report for a selected machine.\n- **Fresh** means the report endTime is within 24 hours of the time the query runs; older is Stale, a missing time is UnknownAge. Neither is ever treated as passing.\n- **Reasons are not checks.** One check can carry several reasons; only unique check keys are counted.\n- **Native CIS Windows Server is a preview offering with unverified applicability.** Missing CIS assignments are 'assessment unavailable', not failures and not compliance. AzureWindowsBaseline and CISWindowsSecurityBaseline are separate families; a cross-reference is not equivalence.\n- **No certification claim.** Categories come from the check identifier prefix when present. No benchmark control mapping is asserted without verified provenance.\n- **Scope and permissions.** Results contain only what your Azure RBAC allows; parameters filter the view but are not authorization. Row counts above Resource Graph limits (1,000 rows per page in the portal grid, expansion limits) can truncate results; narrow the scope if a grid reports truncation."
+    "json": "### Evidence and limitations\n\n- **Live tabs only show the latest state.** Resource Graph holds the latest indexed state. There is no durable history, so no posture trend is shown on them. Stored snapshots need the enhanced mode (History tab, Log Analytics) or the standalone app.\n- **Resource Graph is a projection.** It can lag, scrubs some data and is not guaranteed to expose every report property (completeness, expected/actual values, history). Verify against the Machine Configuration report for a selected machine.\n- **Fresh** means the report endTime is within 24 hours of the time the query runs; older is Stale, a missing time is UnknownAge. Neither is ever treated as passing.\n- **Reasons are not checks.** One check can carry several reasons; only unique check keys are counted.\n- **Native CIS Windows Server is a preview offering with unverified applicability.** Missing CIS assignments are 'assessment unavailable', not failures and not compliance. AzureWindowsBaseline and CISWindowsSecurityBaseline are separate families; a cross-reference is not equivalence.\n- **No certification claim.** Categories come from the check identifier prefix when present. No benchmark control mapping is asserted without verified provenance.\n- **Scope and permissions.** Results contain only what your Azure RBAC allows; parameters filter the view but are not authorization. Row counts above Resource Graph limits (1,000 rows per page in the portal grid, expansion limits) can truncate results; narrow the scope if a grid reports truncation."
    },
    "name": "evidence - limitations",
    "conditionalVisibility": {
@@ -894,12 +959,12 @@
      "sortBy": []
     }
    },
+   "name": "query - evidence-exemptions",
    "conditionalVisibility": {
     "parameterName": "tab",
     "comparison": "isEqualTo",
     "value": "evidence"
-   },
-   "name": "query - evidence-exemptions"
+   }
   },
   {
    "type": 1,
@@ -912,6 +977,386 @@
     "comparison": "isEqualTo",
     "value": "evidence"
    }
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "### History / Enhanced mode (optional, Log Analytics)\n\nThis tab reads **stored snapshots** that the standalone collector delivered to a Log Analytics workspace. It is not live: every value is as of the collector snapshot time shown in the first table, and **delivery lag** (ingestion time minus snapshot time) shows how far behind the workspace is. Compare with the live tabs, which query Azure directly.\n\n- Select the **Log Analytics workspace** and **Time range** in the parameters above. The subscription and resource-group filters do **not** scope this tab: log rows are filtered by workspace access, not by those parameters. Access to the workspace is not authorization for the underlying Azure resources; use resource-context access or one workspace per security boundary.\n- History starts when the collector first delivered data and can have gaps (collector or delivery outages). Missing rows are shown as missing, never inferred.\n- Interactive history covers up to 13 calendar months when the tables were deployed with the provided retention setting.\n- Results describe Azure Policy / Machine Configuration reports; they are not a CIS certification."
+   },
+   "name": "intro - history",
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "history"
+   }
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**No Log Analytics workspace selected.** Choose one in the *Log Analytics workspace* parameter to see history. The History tab is optional; every other tab works without it."
+   },
+   "name": "history - no workspace",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "ComplianceCollectionRuns_CL\n| extend IngestedAt = ingestion_time()\n| summarize IngestedAt = min(IngestedAt), CollectionStatus = take_any(CollectionStatus), ReportsInserted = take_any(ReportsInserted), MachineCount = take_any(MachineCount), ErrorCount = take_any(ErrorCount) by RunId, SnapshotTime = TimeGenerated\n| extend DeliveryLagMinutes = datetime_diff('minute', IngestedAt, SnapshotTime), SnapshotAgeHours = round(datetime_diff('minute', now(), SnapshotTime) / 60.0, 1)\n| project SnapshotTime, RunId, CollectionStatus, MachineCount, ReportsInserted, ErrorCount, IngestedAt, DeliveryLagMinutes, SnapshotAgeHours\n| order by SnapshotTime desc\n",
+    "size": 1,
+    "title": "Collection runs and delivery lag (Logs snapshot time, not live)",
+    "noDataMessage": "No collection runs in Log Analytics for the selected time range.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": []
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange"
+   },
+   "name": "query - hist-delivery",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- Every time shown here is the collector snapshot time stored in Log Analytics. It is not the live state in Azure; the Overview tab is the live view.\n- Delivery lag = Log Analytics ingestion time minus snapshot time. Retried deliveries show as larger lag. A missing recent run means the collector did not run or its Logs delivery is backlogged; neither is shown as compliance.\n- Rows are de-duplicated on RunId because the Logs Ingestion API is not idempotent and retries can duplicate rows. The earliest ingestion time is used.\n- CollectionStatus is the PostgreSQL collection result. Delivery problems never change it."
+   },
+   "name": "notes - hist-delivery",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "PolicyComplianceSnapshots_CL\n| summarize CollectionStatus = take_any(CollectionStatus), PolicyCompliancePercent = take_any(PolicyCompliancePercent), CheckPassPercent = take_any(CheckPassPercent), ChecksTotal = take_any(ChecksTotal), ReportsExcludedAsNotFresh = take_any(ReportsExcludedAsNotFresh), EligibleMachines = take_any(EligibleMachines), FreshReportPercent = take_any(FreshReportPercent) by RunId, Family, SnapshotTime = TimeGenerated\n| sort by Family asc, SnapshotTime asc\n| extend CheckPassDelta = iff(Family == prev(Family) and isnotnull(CheckPassPercent) and isnotnull(prev(CheckPassPercent)), round(CheckPassPercent - prev(CheckPassPercent), 2), real(null))\n| extend EligibleMachinesChange = iff(Family == prev(Family), EligibleMachines - prev(EligibleMachines), long(null))\n| order by SnapshotTime desc, Family asc\n",
+    "size": 1,
+    "title": "Stored snapshots per baseline family (policy compliance %, check pass rate and coverage kept separate)",
+    "noDataMessage": "No stored snapshots in Log Analytics for the selected time range.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": []
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange"
+   },
+   "name": "query - hist-trend",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- One row per collection run and family. The three measures are never blended; a null percentage means a zero denominator, not 0% or 100%.\n- Deltas compare consecutive stored snapshots of the same family. Gaps between snapshots (outages, skipped runs) are not interpolated. EligibleMachinesChange shows a changing cohort; compare trends only when it is zero.\n- Six-hour sampling is not continuous assessment. Partial or failed runs keep their CollectionStatus and are never hidden."
+   },
+   "name": "notes - hist-trend",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "let latestSnapshot = toscalar(ComplianceCollectionRuns_CL | summarize max(TimeGenerated));\nlet latestEnd = MachineConfigReports_CL\n    | summarize ReportEndTime = max(ReportEndTime) by MachineId, Family;\nlet latestReport = MachineConfigReports_CL\n    | join kind=inner latestEnd on MachineId, Family, ReportEndTime\n    | summarize ReportId = min(ReportId) by MachineId, Family, ReportEndTime;\nlet dedupedChecks = MachineConfigChecks_CL\n    | summarize CheckStatus = take_any(ComplianceStatus), CheckName = take_any(CheckName), CheckCategory = take_any(Category) by ReportId, CheckKey;\nlet logsFreshChecks = latestReport\n    | where ReportEndTime >= latestSnapshot - 24h\n    | join kind=inner dedupedChecks on ReportId\n    | extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)\n    | project MachineId, Family, ReportId, ReportEndTime, CheckKey, CheckName, CheckStatus, Category;\nlogsFreshChecks\n| where '{Family}' == '*' or Family == '{Family}'\n| summarize totalChecks = count(), failedChecks = countif(CheckStatus == 'NonCompliant'), distinctChecks = dcount(CheckKey), machinesAffected = dcountif(MachineId, CheckStatus == 'NonCompliant') by Family, Category\n| extend failedPercent = iff(totalChecks == 0, real(null), round(100.0 * failedChecks / totalChecks, 2))\n| order by failedChecks desc\n",
+    "size": 1,
+    "title": "Fleet-wide categories from stored reports (select a row to filter the checks below)",
+    "noDataMessage": "No fresh stored checks in Log Analytics for the selected time range.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": [],
+     "rowLimit": 1000
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange",
+    "exportedParameters": [
+     {
+      "fieldName": "family",
+      "parameterName": "Family",
+      "parameterType": 1
+     },
+     {
+      "fieldName": "category",
+      "parameterName": "Category",
+      "parameterType": 1
+     }
+    ]
+   },
+   "name": "query - hist-cat-summary",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- Uses the latest stored report per machine and family whose end time is within 24 hours of the latest stored collection snapshot. Older reports are excluded and not counted as passing.\n- Only reports delivered to Log Analytics are visible. Reports stored by the app before the sink was enabled are absent, so a machine can look stale or missing here even though the app has data.\n- Counts are unique (machine, check) pairs after de-duplicating retried deliveries on (ReportId, CheckKey). Category comes from the source check identifier prefix; no control mapping is claimed."
+   },
+   "name": "notes - hist-cat-summary",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "let latestSnapshot = toscalar(ComplianceCollectionRuns_CL | summarize max(TimeGenerated));\nlet latestEnd = MachineConfigReports_CL\n    | summarize ReportEndTime = max(ReportEndTime) by MachineId, Family;\nlet latestReport = MachineConfigReports_CL\n    | join kind=inner latestEnd on MachineId, Family, ReportEndTime\n    | summarize ReportId = min(ReportId) by MachineId, Family, ReportEndTime;\nlet dedupedChecks = MachineConfigChecks_CL\n    | summarize CheckStatus = take_any(ComplianceStatus), CheckName = take_any(CheckName), CheckCategory = take_any(Category) by ReportId, CheckKey;\nlet logsFreshChecks = latestReport\n    | where ReportEndTime >= latestSnapshot - 24h\n    | join kind=inner dedupedChecks on ReportId\n    | extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)\n    | project MachineId, Family, ReportId, ReportEndTime, CheckKey, CheckName, CheckStatus, Category;\nlogsFreshChecks\n| where '{Category}' != '-' and Category == '{Category}'\n| where '{Family}' == '*' or Family == '{Family}'\n| summarize totalMachines = dcount(MachineId), failingMachines = dcountif(MachineId, CheckStatus == 'NonCompliant'), CheckName = take_any(CheckName) by Family, CheckKey\n| extend failingPercent = iff(totalMachines == 0, real(null), round(100.0 * failingMachines / totalMachines, 2))\n| order by failingMachines desc, CheckKey asc\n",
+    "size": 1,
+    "title": "Checks in the selected stored category",
+    "noDataMessage": "Select a category row above, or no fresh stored checks exist for it.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": []
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange"
+   },
+   "name": "query - hist-cat-checks",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- Same population and de-duplication as the category summary above. Select a category row first; the default selection is empty.\n- Reasons are not shown here and are never counted as checks."
+   },
+   "name": "notes - hist-cat-checks",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "MachineConfigChecks_CL\n| summarize CheckStatus = take_any(ComplianceStatus), CheckCategory = take_any(Category), ReportEndTime = take_any(ReportEndTime), Family = take_any(Family) by ReportId, CheckKey\n| extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)\n| summarize storedChecks = count(), failedChecks = countif(CheckStatus == 'NonCompliant') by Day = bin(ReportEndTime, 1d), Family, Category\n| extend failedPercent = iff(storedChecks == 0, real(null), round(100.0 * failedChecks / storedChecks, 2))\n| order by Day desc, Family asc, failedChecks desc\n",
+    "size": 1,
+    "title": "Failed checks per category by day of report end time (distribution of stored reports)",
+    "noDataMessage": "No stored checks in Log Analytics for the selected time range.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": []
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange"
+   },
+   "name": "query - hist-cat-trend",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- Counts stored (machine, check) rows by the day the report ended. This describes the reports that were stored, not a fleet snapshot: a machine whose report did not change contributes no new rows.\n- Use it to see where failures concentrate over time. Use the fleet-wide category summary for the current estate and the stored snapshots for the metric trend."
+   },
+   "name": "notes - hist-cat-trend",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "MachineConfigReports_CL\n| summarize ComplianceStatus = take_any(ComplianceStatus) by MachineId, Family, ReportEndTime, ReportId\n| sort by MachineId asc, Family asc, ReportEndTime asc\n| extend PreviousStatus = iff(MachineId == prev(MachineId) and Family == prev(Family), prev(ComplianceStatus), '')\n| extend Change = case(PreviousStatus == 'Compliant' and ComplianceStatus == 'NonCompliant', 'Regression', PreviousStatus == 'NonCompliant' and ComplianceStatus == 'Compliant', 'Recovery', '')\n| where Change != ''\n| summarize Regressions = countif(Change == 'Regression'), Recoveries = countif(Change == 'Recovery'), LastChange = max(ReportEndTime) by MachineId, Family\n| order by Regressions desc, LastChange desc\n",
+    "size": 1,
+    "title": "Drift: regressions and recoveries per machine and family",
+    "noDataMessage": "No state changes between stored reports in the selected time range.",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "{Workspace}"
+    ],
+    "visualization": "table",
+    "gridSettings": {
+     "filter": true,
+     "sortBy": []
+    },
+    "timeContext": {
+     "durationMs": 2592000000
+    },
+    "timeContextFromParameter": "TimeRange"
+   },
+   "name": "query - hist-drift",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "**Query assumptions**\n- Compares consecutive stored reports of the same machine and family: Compliant to NonCompliant is a regression, NonCompliant to Compliant is a recovery. Other state changes are ignored.\n- Only reports delivered to Log Analytics within the selected time range are compared. A missing report (outage, retention) hides a change; it is never inferred.\n- Machines are keyed by the lower-cased full ARM id, so duplicate names stay distinct."
+   },
+   "name": "notes - hist-drift",
+   "conditionalVisibilities": [
+    {
+     "parameterName": "tab",
+     "comparison": "isEqualTo",
+     "value": "history"
+    },
+    {
+     "parameterName": "Workspace",
+     "comparison": "isNotEqualTo",
+     "value": ""
+    }
+   ]
   }
  ],
  "fallbackResourceIds": [],

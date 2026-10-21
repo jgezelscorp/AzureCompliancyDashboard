@@ -1,0 +1,16 @@
+// @id hist-drift
+// @tab history
+// @source logs
+// @title Drift: regressions and recoveries per machine and family
+// @note Compares consecutive stored reports of the same machine and family: Compliant to NonCompliant is a regression, NonCompliant to Compliant is a recovery. Other state changes are ignored.
+// @note Only reports delivered to Log Analytics within the selected time range are compared. A missing report (outage, retention) hides a change; it is never inferred.
+// @note Machines are keyed by the lower-cased full ARM id, so duplicate names stay distinct.
+// @nodata No state changes between stored reports in the selected time range.
+MachineConfigReports_CL
+| summarize ComplianceStatus = take_any(ComplianceStatus) by MachineId, Family, ReportEndTime, ReportId
+| sort by MachineId asc, Family asc, ReportEndTime asc
+| extend PreviousStatus = iff(MachineId == prev(MachineId) and Family == prev(Family), prev(ComplianceStatus), '')
+| extend Change = case(PreviousStatus == 'Compliant' and ComplianceStatus == 'NonCompliant', 'Regression', PreviousStatus == 'NonCompliant' and ComplianceStatus == 'Compliant', 'Recovery', '')
+| where Change != ''
+| summarize Regressions = countif(Change == 'Regression'), Recoveries = countif(Change == 'Recovery'), LastChange = max(ReportEndTime) by MachineId, Family
+| order by Regressions desc, LastChange desc

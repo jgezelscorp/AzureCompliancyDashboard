@@ -25,6 +25,7 @@ from app.metrics import views
 from app.metrics.engine import FAMILIES, compute
 from app.metrics.store import load_bundle, snapshot_to_dict
 from app.models import EvidenceBundle
+from app.sink.outbox import delivery_summary
 
 router = APIRouter(prefix="/api/v1", tags=["metrics"])
 
@@ -353,6 +354,15 @@ def collection_runs(
             for r in rows
         ]
     }
+
+
+@router.get("/collection/sink")
+def collection_sink(session: SessionDep, settings: SettingsDep, _: ScopesDep) -> dict[str, Any]:
+    """Optional Log Analytics delivery status. Counts and ages only; it never reflects on the
+    validity of the PostgreSQL collection, which is judged by /collection/runs."""
+    if not settings.logs_sink_enabled:
+        return {"enabled": False}
+    return {"enabled": True, **delivery_summary(session, _now())}
 
 
 @router.get("/collection/sources")

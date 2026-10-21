@@ -23,8 +23,9 @@ The workbook reports Azure Policy / Machine Configuration results. It does **not
 4. **Check / reason detail** - unique checks with failing-machine counts; selecting a check lists its reasons per machine.
 5. **Machines** - machine x family status with evidence-quality reason; selecting a row lists that machine's checks.
 6. **Evidence & limitations** - written limitations and policy exemptions with expiry.
+7. **History / Enhanced (optional)** - fleet-wide check, category and run history read from Log Analytics custom tables, with delivery lag. Visible only when a **Workspace** is selected; without one the tab shows an explanation and the other tabs are unaffected. See `docs/logs-reporting.md`.
 
-Parameters: **Subscriptions** (multi-select, default all you can read), **Resource groups** (multi-select, default all), **Baseline family**, and two policy-definition GUIDs used only to label policy rows (`CisDefinitionId` defaults to the documented built-in native CIS definition; `AzureBaselineDefinitionId` defaults to the placeholder `00000000-0000-0000-0000-000000000000` and **must be set** to the Azure Windows baseline definition GUID used in your estate, otherwise no policy row is labeled AzureWindowsBaseline). No tenant or subscription ID is stored anywhere.
+Parameters: **Subscriptions** (multi-select, default all you can read), **Resource groups** (multi-select, default all), **Baseline family**, and two policy-definition GUIDs used only to label policy rows (`CisDefinitionId` defaults to the documented built-in native CIS definition; `AzureBaselineDefinitionId` defaults to the placeholder `00000000-0000-0000-0000-000000000000` and **must be set** to the Azure Windows baseline definition GUID used in your estate, otherwise no policy row is labeled AzureWindowsBaseline). No tenant or subscription ID is stored anywhere. History tab only: **Workspace** (optional Log Analytics workspace picker, empty by default) and **TimeRange** (default 30 days; up to 400 days). The Subscriptions and Resource groups parameters do **not** filter the History tab: it shows what the collector sent for its configured scope, and Log Analytics RBAC on the workspace is the access control.
 
 ## Metric rules (from `docs/metrics-spec.md`)
 
@@ -80,7 +81,7 @@ pytest tests\workbook
 
 ## Parity testing
 
-No KQL engine runs in CI. `tests/workbook/kql_model.py` re-implements the queries' logic step by step (same grouping, `arg_max`, left join, null handling) over ARG-shaped rows built from the fixtures, and tests assert it equals `scripts/metrics_reference.py` for every fixture and both families (including the 373 / 109 / 264 golden report, empty estate, stale boundary, unknown age and duplicate machine names). Separate tests assert the KQL text carries the contract constants (86400 s, `arg_max(rank`, `real(null)`). This proves the logic, not that the KQL text parses or that live ARG exposes the same properties.
+No KQL engine runs in CI. `tests/workbook/kql_model.py` re-implements the queries' logic step by step (same grouping, `arg_max`, left join, null handling) over ARG-shaped rows built from the fixtures, and tests assert it equals `scripts/metrics_reference.py` for every fixture and both families (including the 373 / 109 / 264 golden report, empty estate, stale boundary, unknown age and duplicate machine names). Separate tests assert the KQL text carries the contract constants (86400 s, `arg_max(rank`, `real(null)`). The History tab has the same kind of model (`logs_fresh_checks`): latest report per machine and family, the 24 h window relative to the latest stored run snapshot, de-duplication of retried rows, and a check that logs queries read only the four `_CL` tables. This proves the logic, not that the KQL text parses or that live ARG exposes the same properties.
 
 ## Caveats and unverified items
 
@@ -94,3 +95,4 @@ Nothing here was run against Azure. Verify in a non-production scope before rely
 - The Azure baseline policy-definition GUID is not in the I01 manifest and must be configured. Native CIS applicability remains unverified (gate G-APP): no CIS control mapping or benchmark claim is made.
 - Percentages are rounded by KQL `round`; Python uses banker's rounding, so a half-way value may differ in the last digit.
 - Portal workbook access does not grant data access; users only see what Azure RBAC lets them read.
+- History tab (not rendered in the portal, KQL never executed): `conditionalVisibilities` with two conditions, `timeContextFromParameter` and the optional type-5 workspace picker follow published patterns but are unverified. Row-level filtering by subscription is not provided; sharing the workspace shares the history of everything the collector sent.

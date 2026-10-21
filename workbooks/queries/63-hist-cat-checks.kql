@@ -1,0 +1,14 @@
+// @id hist-cat-checks
+// @tab history
+// @source logs
+// @title Checks in the selected stored category
+// @note Same population and de-duplication as the category summary above. Select a category row first; the default selection is empty.
+// @note Reasons are not shown here and are never counted as checks.
+// @nodata Select a category row above, or no fresh stored checks exist for it.
+//#include logs_fresh
+logsFreshChecks
+| where '{Category}' != '-' and Category == '{Category}'
+| where '{Family}' == '*' or Family == '{Family}'
+| summarize totalMachines = dcount(MachineId), failingMachines = dcountif(MachineId, CheckStatus == 'NonCompliant'), CheckName = take_any(CheckName) by Family, CheckKey
+| extend failingPercent = iff(totalMachines == 0, real(null), round(100.0 * failingMachines / totalMachines, 2))
+| order by failingMachines desc, CheckKey asc

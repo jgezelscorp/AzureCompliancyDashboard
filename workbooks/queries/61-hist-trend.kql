@@ -1,0 +1,14 @@
+// @id hist-trend
+// @tab history
+// @source logs
+// @title Stored snapshots per baseline family (policy compliance %, check pass rate and coverage kept separate)
+// @note One row per collection run and family. The three measures are never blended; a null percentage means a zero denominator, not 0% or 100%.
+// @note Deltas compare consecutive stored snapshots of the same family. Gaps between snapshots (outages, skipped runs) are not interpolated. EligibleMachinesChange shows a changing cohort; compare trends only when it is zero.
+// @note Six-hour sampling is not continuous assessment. Partial or failed runs keep their CollectionStatus and are never hidden.
+// @nodata No stored snapshots in Log Analytics for the selected time range.
+PolicyComplianceSnapshots_CL
+| summarize CollectionStatus = take_any(CollectionStatus), PolicyCompliancePercent = take_any(PolicyCompliancePercent), CheckPassPercent = take_any(CheckPassPercent), ChecksTotal = take_any(ChecksTotal), ReportsExcludedAsNotFresh = take_any(ReportsExcludedAsNotFresh), EligibleMachines = take_any(EligibleMachines), FreshReportPercent = take_any(FreshReportPercent) by RunId, Family, SnapshotTime = TimeGenerated
+| sort by Family asc, SnapshotTime asc
+| extend CheckPassDelta = iff(Family == prev(Family) and isnotnull(CheckPassPercent) and isnotnull(prev(CheckPassPercent)), round(CheckPassPercent - prev(CheckPassPercent), 2), real(null))
+| extend EligibleMachinesChange = iff(Family == prev(Family), EligibleMachines - prev(EligibleMachines), long(null))
+| order by SnapshotTime desc, Family asc

@@ -19,13 +19,23 @@ TABS = [
     ("checks", "Check / reason detail"),
     ("machines", "Machines"),
     ("evidence", "Evidence & limitations"),
+    ("history", "History / Enhanced (Log Analytics)"),
 ]
 
 # Workbook parameters a query may reference; anything else is a bug.
 KNOWN_PARAMETERS = {
     "Subscriptions", "ResourceGroups", "CisDefinitionId", "AzureBaselineDefinitionId",
-    "Family", "Category", "CheckKey", "MachineId",
+    "Family", "Category", "CheckKey", "MachineId", "Workspace", "TimeRange",
 }
+# Parameters that queries must not interpolate into KQL text (they only drive the query scope).
+SCOPE_ONLY_PARAMETERS = {"Workspace", "TimeRange"}
+LOGS_TABLES = {
+    "ComplianceCollectionRuns_CL", "PolicyComplianceSnapshots_CL",
+    "MachineConfigReports_CL", "MachineConfigChecks_CL",
+}
+LOGS_WORKSPACE_TYPE = "microsoft.operationalinsights/workspaces"
+TIME_RANGE_DEFAULT_MS = 2592000000
+TIME_RANGE_CHOICES_MS = [86400000, 604800000, 2592000000, 7776000000, 31536000000, 34560000000]
 
 INCLUDE = re.compile(r"^//#include\s+(\w+)\s*$")
 HEADER = re.compile(r"^// @(\w+)\s*(.*)$")
@@ -37,7 +47,10 @@ INTRO = (
     "**not** a CIS (or any other) certification or attestation.\n\n"
     "Three different measures are always shown separately and never blended: **Azure Policy "
     "compliance %**, **check pass rate** and **coverage**. Stale, unknown-age, missing or "
-    "no-data evidence is never shown as compliant."
+    "no-data evidence is never shown as compliant.\n\n"
+    "All tabs except **History / Enhanced** are live and need nothing but Azure RBAC read access. "
+    "The History tab is optional: it reads stored snapshots from a Log Analytics workspace that "
+    "the standalone collector fills, and works only when that workspace is selected."
 )
 
 OVERVIEW_DEFINITIONS = (
@@ -52,8 +65,8 @@ OVERVIEW_DEFINITIONS = (
 
 EVIDENCE_TEXT = (
     "### Evidence and limitations\n\n"
-    "- **Live mode only.** Resource Graph holds the latest indexed state. There is no durable history, "
-    "so no posture trend is shown. Stored snapshots need the enhanced mode (Log Analytics) or the standalone app.\n"
+    "- **Live tabs only show the latest state.** Resource Graph holds the latest indexed state. There is no durable history, "
+    "so no posture trend is shown on them. Stored snapshots need the enhanced mode (History tab, Log Analytics) or the standalone app.\n"
     "- **Resource Graph is a projection.** It can lag, scrubs some data and is not guaranteed to expose "
     "every report property (completeness, expected/actual values, history). Verify against the Machine "
     "Configuration report for a selected machine.\n"
@@ -71,6 +84,31 @@ EVIDENCE_TEXT = (
 )
 
 
+HISTORY_TEXT = (
+    "### History / Enhanced mode (optional, Log Analytics)\n\n"
+    "This tab reads **stored snapshots** that the standalone collector delivered to a Log Analytics "
+    "workspace. It is not live: every value is as of the collector snapshot time shown in the first "
+    "table, and **delivery lag** (ingestion time minus snapshot time) shows how far behind the "
+    "workspace is. Compare with the live tabs, which query Azure directly.\n\n"
+    "- Select the **Log Analytics workspace** and **Time range** in the parameters above. The "
+    "subscription and resource-group filters do **not** scope this tab: log rows are filtered by "
+    "workspace access, not by those parameters. Access to the workspace is not authorization for "
+    "the underlying Azure resources; use resource-context access or one workspace per security "
+    "boundary.\n"
+    "- History starts when the collector first delivered data and can have gaps (collector or "
+    "delivery outages). Missing rows are shown as missing, never inferred.\n"
+    "- Interactive history covers up to 13 calendar months when the tables were deployed with the "
+    "provided retention setting.\n"
+    "- Results describe Azure Policy / Machine Configuration reports; they are not a CIS "
+    "certification."
+)
+
+HISTORY_NO_WORKSPACE = (
+    "**No Log Analytics workspace selected.** Choose one in the *Log Analytics workspace* "
+    "parameter to see history. The History tab is optional; every other tab works without it."
+)
+
+
 def read_text(path):
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
 
@@ -80,7 +118,7 @@ def load_fragments():
 
 
 def parse_query(path, fragments):
-    meta = {"notes": [], "exports": [], "viz": "table", "nodata": "No data."}
+    meta = {"notes": [], "exports": [], "viz": "table", "nodata": "No data.", "source": "arg"}
     body = []
     for line in read_text(path).splitlines():
         inc = INCLUDE.match(line)
@@ -113,6 +151,14 @@ def _visible(tab):
     return {"parameterName": "tab", "comparison": "isEqualTo", "value": tab}
 
 
+def _logs_visible(tab):
+    """History items need the tab AND a selected workspace (all conditions must hold)."""
+    return [
+        _visible(tab),
+        {"parameterName": "Workspace", "comparison": "isNotEqualTo", "value": ""},
+    ]
+
+
 def _markdown(name, text, tab=None):
     item = {"type": 1, "content": {"json": text}, "name": name}
     if tab:
@@ -121,18 +167,22 @@ def _markdown(name, text, tab=None):
 
 
 def _query_item(q, viz=None, suffix="", with_exports=True):
+    logs = q["source"] == "logs"
     content = {
         "version": "KqlItem/1.0",
         "query": q["query"],
         "size": 1,
         "title": q["title"] + suffix,
         "noDataMessage": q["nodata"],
-        "queryType": 1,
-        "resourceType": "microsoft.resourcegraph/resources",
-        "crossComponentResources": ["{Subscriptions}"],
+        "queryType": 0 if logs else 1,
+        "resourceType": LOGS_WORKSPACE_TYPE if logs else "microsoft.resourcegraph/resources",
+        "crossComponentResources": ["{Workspace}"] if logs else ["{Subscriptions}"],
         "visualization": viz or "table",
         "gridSettings": {"filter": True, "sortBy": []},
     }
+    if logs:
+        content["timeContext"] = {"durationMs": TIME_RANGE_DEFAULT_MS}
+        content["timeContextFromParameter"] = "TimeRange"
     if viz == "barchart":
         content["chartSettings"] = {"showLegend": True}
     if with_exports and q["exports"]:
@@ -140,17 +190,25 @@ def _query_item(q, viz=None, suffix="", with_exports=True):
         content["exportedParameters"] = [
             {"fieldName": f, "parameterName": p, "parameterType": 1} for f, p in q["exports"]
         ]
-    return {
+    item = {
         "type": 3,
         "content": content,
-        "conditionalVisibility": _visible(q["tab"]),
         "name": f"query - {q['id']}{'-table' if suffix else ''}",
     }
+    if logs:
+        item["conditionalVisibilities"] = _logs_visible(q["tab"])
+    else:
+        item["conditionalVisibility"] = _visible(q["tab"])
+    return item
 
 
 def _notes(q):
     text = "**Query assumptions**\n" + "\n".join(f"- {n}" for n in q["notes"])
-    return _markdown(f"notes - {q['id']}", text, q["tab"])
+    item = _markdown(f"notes - {q['id']}", text, q["tab"])
+    if q["source"] == "logs":
+        del item["conditionalVisibility"]
+        item["conditionalVisibilities"] = _logs_visible(q["tab"])
+    return item
 
 
 def _parameters():
@@ -196,6 +254,26 @@ def _parameters():
                         {"value": "CISWindowsSecurityBaseline", "label": "CISWindowsSecurityBaseline (native CIS, preview)"},
                     ]),
                     "typeSettings": {"additionalResourceOptions": [], "showDefault": False},
+                },
+                {
+                    "id": "param-Workspace", "version": "KqlParameterItem/1.0", "name": "Workspace",
+                    "label": "Log Analytics workspace (History tab, optional)", "type": 5,
+                    "isRequired": False, "multiSelect": False, "value": "",
+                    "queryType": 1, "resourceType": "microsoft.resourcegraph/resources",
+                    "crossComponentResources": ["{Subscriptions}"],
+                    "query": "resources\n| where type =~ 'microsoft.operationalinsights/workspaces'\n"
+                             "| project value = id, label = name\n| order by label asc",
+                    "typeSettings": {"additionalResourceOptions": [], "showDefault": False},
+                    "isGlobal": True,
+                },
+                {
+                    "id": "param-TimeRange", "version": "KqlParameterItem/1.0", "name": "TimeRange",
+                    "label": "Time range (History tab)", "type": 4, "isRequired": True,
+                    "value": {"durationMs": TIME_RANGE_DEFAULT_MS}, "isGlobal": True,
+                    "typeSettings": {
+                        "selectableValues": [{"durationMs": ms} for ms in TIME_RANGE_CHOICES_MS],
+                        "allowCustom": True,
+                    },
                 },
                 text("CisDefinitionId", "Native CIS policy definition GUID",
                      "6dcfa239-b481-4de9-a03f-980f24f3b0bb",
@@ -245,12 +323,18 @@ def _tabs():
 def build_workbook():
     queries = load_queries()
     items = [_markdown("intro", INTRO), _parameters(), _tabs()]
-    intro_by_tab = {"overview": OVERVIEW_DEFINITIONS}
+    intro_by_tab = {"overview": OVERVIEW_DEFINITIONS, "history": HISTORY_TEXT}
     for key, _label in TABS:
         if key in intro_by_tab:
             items.append(_markdown(f"intro - {key}", intro_by_tab[key], key))
         if key == "evidence":
             items.append(_markdown("evidence - limitations", EVIDENCE_TEXT, key))
+        if key == "history":
+            no_ws = _markdown("history - no workspace", HISTORY_NO_WORKSPACE)
+            no_ws["conditionalVisibilities"] = [
+                _visible(key), {"parameterName": "Workspace", "comparison": "isEqualTo", "value": ""},
+            ]
+            items.append(no_ws)
         for q in (x for x in queries if x["tab"] == key):
             chart = q["viz"].startswith("barchart")
             items.append(_query_item(q, "barchart" if chart else "table", with_exports=not chart))

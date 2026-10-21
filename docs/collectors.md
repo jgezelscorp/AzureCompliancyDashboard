@@ -27,6 +27,10 @@ Every `/api/v1/metrics/*` and `/api/v1/collection/*` endpoint needs an Entra bea
 - `/metrics/history` includes collector-wide aggregates only when the viewer is authorized for every configured subscription; otherwise it returns only a machine summary.
 - `/collection/runs` omits error text and checkpoints.
 
+## Optional Log Analytics sink
+
+Off by default (`ACD_LOGS_SINK_ENABLED`). When enabled, after each run is committed to PostgreSQL the collector queues rows in the `logs_outbox` table (migration 0004) and delivers them with the Logs Ingestion API. A sink outage, throttling or token failure never changes run status or evidence; the data is kept in the outbox and retried. See `docs/logs-reporting.md`. `GET /api/v1/collection/sink` returns counts and ages only.
+
 ## Caveats
 
 - Authorization is assessed at subscription level. A viewer with access only at resource-group level receives 403.
