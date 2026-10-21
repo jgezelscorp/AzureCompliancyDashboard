@@ -26,6 +26,28 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173"]
     )
+    collection_interval_hours: int = Field(default=6, ge=1, le=168)
+    collection_concurrency: int = Field(default=4, ge=1, le=16)
+    collection_run_timeout_minutes: int = Field(default=180, ge=5)
+    arm_max_retries: int = Field(default=5, ge=0, le=10)
+    # "<policyDefinitionGuidOrId>=<BaselineFamily>,..."; unmapped policy states stay unclassified
+    policy_family_map: Annotated[dict[str, str], NoDecode] = Field(default_factory=dict)
+
+    @field_validator("policy_family_map", mode="before")
+    @classmethod
+    def _parse_family_map(cls, v: object) -> object:
+        if isinstance(v, str):
+            pairs = [p.split("=", 1) for p in v.split(",") if "=" in p]
+            return {k.strip().lower(): f.strip() for k, f in pairs}
+        return v
+
+    @field_validator("policy_family_map")
+    @classmethod
+    def _family_values(cls, v: dict[str, str]) -> dict[str, str]:
+        allowed = {"AzureWindowsBaseline", "CISWindowsSecurityBaseline"}
+        if any(f not in allowed for f in v.values()):
+            raise ValueError(f"policy_family_map values must be one of {sorted(allowed)}")
+        return {k.lower(): f for k, f in v.items()}
 
     @field_validator("subscription_ids", "cors_origins", mode="before")
     @classmethod
