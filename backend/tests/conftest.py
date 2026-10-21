@@ -19,3 +19,10 @@ def load_fixture(name: str) -> dict[str, Any]:
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(create_app(Settings(environment="test")))
+
+
+@pytest.fixture(autouse=True)
+def _fresh_permission_cache() -> None:
+    from app.auth.permissions import clear_permission_cache
+
+    clear_permission_cache()

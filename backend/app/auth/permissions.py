@@ -1,6 +1,9 @@
 """Authorization decisions from Microsoft.Authorization/permissions (fail closed)."""
 
+import hashlib
 import re
+import threading
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
@@ -75,6 +78,25 @@ def _scope_path(subscription_id: str, resource_group: str | None) -> str:
     return path + "/providers/Microsoft.Authorization/permissions"
 
 
+PERMISSION_CACHE_TTL_SECONDS = 60.0
+_CACHE_MAX_ENTRIES = 4096
+_cache: dict[str, tuple[float, bool]] = {}
+_cache_lock = threading.Lock()
+
+
+def clear_permission_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
+
+
+def _cache_key(
+    arm_token: str, subscription_id: str, resource_group: str | None, action: str
+) -> str:
+    # Keyed by a digest so raw tokens are never retained; a new token (new user/refresh) misses.
+    digest = hashlib.sha256(arm_token.encode()).hexdigest()
+    return f"{digest}|{subscription_id.lower()}|{(resource_group or '').lower()}|{action.lower()}"
+
+
 def has_action(
     arm: ArmClient,
     arm_token: str,
@@ -82,15 +104,29 @@ def has_action(
     resource_group: str | None,
     action: str,
 ) -> bool:
-    """True only on a positive, complete, well-formed answer. Everything else is False."""
+    """True only on a positive, complete, well-formed answer. Everything else is False.
+
+    Definitive answers are cached briefly; failures are never cached, so a transient ARM
+    error cannot linger as a stale grant and a revocation is honoured within the TTL."""
+    key = _cache_key(arm_token, subscription_id, resource_group, action)
+    now = time.monotonic()
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None and hit[0] > now:
+            return hit[1]
     try:
         pages = arm.get_all(
             _scope_path(subscription_id, resource_group), arm_token, PERMISSIONS_API_VERSION
         )
-        return is_action_allowed(pages, action)
+        allowed = is_action_allowed(pages, action)
     except (ArmError, PermissionError_):
         return False
-
+    with _cache_lock:
+        if len(_cache) >= _CACHE_MAX_ENTRIES:
+            for k in [k for k, v in _cache.items() if v[0] <= now] or list(_cache)[:512]:
+                del _cache[k]
+        _cache[key] = (now + PERMISSION_CACHE_TTL_SECONDS, allowed)
+    return allowed
 
 @dataclass(frozen=True)
 class ScopeAccess:

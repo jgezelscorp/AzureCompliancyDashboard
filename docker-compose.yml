@@ -1,5 +1,35 @@
+x-hardened: &hardened
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-backend-env: &backend-env
+  ACD_ENVIRONMENT: ${ACD_ENVIRONMENT:-development}
+  ACD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-acd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-acd}
+  ACD_TENANT_ID: ${ACD_TENANT_ID:-00000000-0000-0000-0000-000000000000}
+  ACD_SUBSCRIPTION_IDS: ${ACD_SUBSCRIPTION_IDS:-}
+  ACD_FRESHNESS_HOURS: ${ACD_FRESHNESS_HOURS:-24}
+  ACD_RETENTION_MONTHS: ${ACD_RETENTION_MONTHS:-13}
+  ACD_CORS_ORIGINS: ${ACD_CORS_ORIGINS:-http://localhost:8080}
+  ACD_RATE_LIMIT_PER_MINUTE: ${ACD_RATE_LIMIT_PER_MINUTE:-600}
+  ACD_LOG_LEVEL: ${ACD_LOG_LEVEL:-INFO}
+  ACD_AUTH_TENANT_ID: ${ACD_AUTH_TENANT_ID:-00000000-0000-0000-0000-000000000000}
+  ACD_AUTH_API_CLIENT_ID: ${ACD_AUTH_API_CLIENT_ID:-00000000-0000-0000-0000-000000000000}
+  ACD_AUTH_SPA_CLIENT_ID: ${ACD_AUTH_SPA_CLIENT_ID:-00000000-0000-0000-0000-000000000000}
+  ACD_AUTH_COLLECTOR_MODE: ${ACD_AUTH_COLLECTOR_MODE:-managed_identity}
+
+# Secrets (POSTGRES_PASSWORD, ACD_AUTH_API_CLIENT_SECRET) come from the runtime environment or
+# an untracked .env file; nothing secret is baked into an image.
 services:
   postgres:
+    <<: *hardened
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-acd}
@@ -7,33 +37,89 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # postgres needs these to drop privileges at start-up
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
+    mem_limit: 1g
+    cpus: 1.0
 
-  backend:
+  migrate:
+    <<: *hardened
     build: ./backend
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+    environment: *backend-env
+    command: ["alembic", "upgrade", "head"]
+    read_only: true
+    mem_limit: 256m
+
+  backend:
+    <<: *hardened
+    build: ./backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
-      ACD_ENVIRONMENT: ${ACD_ENVIRONMENT:-development}
-      ACD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-acd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-acd}
-      ACD_TENANT_ID: ${ACD_TENANT_ID:-00000000-0000-0000-0000-000000000000}
-      ACD_SUBSCRIPTION_IDS: ${ACD_SUBSCRIPTION_IDS:-}
-      ACD_FRESHNESS_HOURS: ${ACD_FRESHNESS_HOURS:-24}
-      ACD_RETENTION_MONTHS: ${ACD_RETENTION_MONTHS:-13}
-      ACD_CORS_ORIGINS: ${ACD_CORS_ORIGINS:-http://localhost:8080}
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      <<: *backend-env
+      ACD_AUTH_API_CLIENT_SECRET: ${ACD_AUTH_API_CLIENT_SECRET:-}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/readyz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
     ports:
       - "127.0.0.1:8000:8000"
 
+  worker:
+    <<: *hardened
+    build: ./backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *backend-env
+      ACD_AUTH_API_CLIENT_SECRET: ${ACD_AUTH_API_CLIENT_SECRET:-}
+    # Collection scheduler plus export-artifact purge loop.
+    command: ["python", "-m", "app.collectors"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
+
   frontend:
+    <<: *hardened
     build: ./frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
     ports:
       - "127.0.0.1:8080:8080"
 

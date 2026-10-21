@@ -20,7 +20,7 @@ copy .env.example .env      # placeholders only; set a local POSTGRES_PASSWORD
 docker compose up --build
 ```
 
-Frontend: http://localhost:8080, API: http://localhost:8000 (`/healthz`, `/api/v1/info`, docs at `/docs`). The backend applies Alembic migrations on start.
+Frontend: http://localhost:8080, API: http://localhost:8000 (`/healthz`, `/readyz`, `/api/v1/info`, docs at `/docs`). A one-shot `migrate` service applies Alembic migrations before the API and worker start. See [docs/operations.md](docs/operations.md) for hardening, backup/restore and deployment notes.
 
 **Backend** (`backend/`)
 
