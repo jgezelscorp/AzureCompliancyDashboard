@@ -17,16 +17,22 @@ def _utc(value: datetime) -> datetime:
 
 
 def load_bundle(
-    session: Session, snapshot_at: datetime, machines_seen_since: datetime | None = None
+    session: Session,
+    snapshot_at: datetime,
+    machines_seen_since: datetime | None = None,
+    subscription_ids: frozenset[str] | None = None,
 ) -> EvidenceBundle:
     """Build an evidence bundle from the database.
 
     Only the latest report per machine and family is loaded with its checks; that is all the
-    metrics need. ``machines_seen_since`` drops machines no longer present in inventory.
+    metrics need. ``machines_seen_since`` drops machines no longer present in inventory;
+    ``subscription_ids`` (when given) restricts everything to those subscriptions.
     """
     machine_q = select(MachineRow)
     if machines_seen_since is not None:
         machine_q = machine_q.where(MachineRow.last_seen_at >= machines_seen_since)
+    if subscription_ids is not None:
+        machine_q = machine_q.where(MachineRow.subscription_id.in_(subscription_ids))
     machines = list(session.scalars(machine_q))
     ids = {m.machine_id for m in machines}
 
@@ -103,6 +109,9 @@ def load_bundle(
                             "checkKey": c.check_key,
                             "name": c.name,
                             "complianceStatus": c.compliance_status,
+                            "category": c.category,
+                            "severity": c.severity,
+                            "benchmarkControlId": c.benchmark_control_id,
                             "reasons": c.reasons or [],
                         }
                         for c in checks_by_report.get(r.report_id, [])

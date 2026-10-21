@@ -28,6 +28,7 @@ from app.auth.tokens import TokenError, TokenValidator
 from app.config import Settings
 from app.main import create_app
 from app.onboarding import OnboardingStore
+from tests.sqlite_compat import make_session_factory
 
 TENANT = "11111111-1111-1111-1111-111111111111"
 API = "22222222-2222-2222-2222-222222222222"
@@ -309,7 +310,7 @@ def build(
     routes: dict[str, Any], obo_fail: bool = False
 ) -> tuple[TestClient, OnboardingStore, FakeArm]:
     app = create_app(Settings(environment="test"))
-    store = OnboardingStore()
+    store = OnboardingStore(make_session_factory()())
     arm = FakeArm(routes)
     app.dependency_overrides[deps.get_validator] = validator
     app.dependency_overrides[deps.get_obo] = lambda: FakeObo(obo_fail)

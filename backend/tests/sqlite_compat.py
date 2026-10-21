@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base
 from app.db_history import MetricSnapshotRow as _  # noqa: F401  (registers tables)
+from app.db_onboarding import OnboardedScopeRow as _o  # noqa: F401
 
 
 @compiles(JSONB, "sqlite")

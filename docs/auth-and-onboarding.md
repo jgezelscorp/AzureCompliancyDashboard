@@ -31,7 +31,7 @@ Protected endpoints exchange the caller's API token for a delegated ARM token (`
 | `GET /onboarding/registered` | Registered subscription IDs |
 | `GET /onboarding/collector` | Non-secret collector identity configuration |
 
-Registered scopes are held in memory in this work package; durable persistence arrives with settings storage (I06).
+Registered scopes are stored durably in the `onboarded_scopes` table (migration 0003). All `/api/v1/metrics/*` and `/api/v1/collection/*` endpoints require an Entra bearer token and return only data for subscriptions that are registered, visible to the caller and readable via Azure RBAC; they fail closed with 403 otherwise.
 
 ## Configuration (placeholders only; see `.env.example`)
 
