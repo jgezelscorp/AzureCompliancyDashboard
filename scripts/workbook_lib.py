@@ -78,7 +78,10 @@ EVIDENCE_TEXT = (
     "- **Native CIS Windows Server is a preview offering with unverified applicability.** Missing CIS "
     "assignments are 'assessment unavailable', not failures and not compliance. AzureWindowsBaseline and "
     "CISWindowsSecurityBaseline are separate families; a cross-reference is not equivalence.\n"
-    "- **No certification claim.** Categories come from the check identifier prefix when present. No "
+    "- **No certification claim.** Categories are the source category when the report provides one, "
+    "otherwise an **app-derived heuristic grouping** of the check name (app rules v__RULES_VERSION__, laid out like "
+    "the public Microsoft Windows security baseline groups). It is not a benchmark mapping; unmatched "
+    "checks stay 'Uncategorized'. The same rules drive the standalone app. No "
     "benchmark control mapping is asserted without verified provenance.\n"
     "- **Scope and permissions.** Results contain only what your Azure RBAC allows; parameters filter the "
     "view but are not authorization. Row counts above Resource Graph limits (1,000 rows per page in the "
@@ -113,6 +116,39 @@ HISTORY_NO_WORKSPACE = (
 
 def read_text(path):
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+CATEGORY_RULES_PATH = ROOT / "backend" / "app" / "domain" / "check_categories.json"
+CATEGORY_TOKEN = re.compile(r"__CATEGORY_CASE\((\w+)\)__")
+
+
+def category_rules():
+    return json.loads(CATEGORY_RULES_PATH.read_text(encoding="utf-8"))
+
+
+def category_case(expr):
+    """KQL case() equivalent of the shared ordered rules (first match wins).
+
+    Same data file as backend/app/domain/check_categories.json, so workbook and app cannot drift.
+    Patterns use RE2 syntax with an (?i) flag; they are emitted as KQL verbatim strings.
+    """
+    data = category_rules()
+    parts = []
+    for rule in data["rules"]:
+        pattern = rule["pattern"]
+        if "'" in pattern:
+            raise ValueError(f"rule {rule['id']}: single quote not allowed in a workbook pattern (use \\x27)")
+        parts.append(f"{expr} matches regex @'(?i){pattern}', '{rule['category']}'")
+    if len(parts) > 30:
+        raise ValueError("too many category rules for a KQL case() expression")
+    return "case(" + ", ".join(parts) + f", '{data['defaultCategory']}')"
+
+
+def render_category_tokens(text):
+    version = str(category_rules()["rulesVersion"])
+    return CATEGORY_TOKEN.sub(lambda m: category_case(m.group(1)), text).replace(
+        "__RULES_VERSION__", version
+    )
 
 
 def load_fragments():
@@ -151,7 +187,8 @@ def parse_query(path, fragments):
                 meta[key] = value
             continue
         body.append(line)
-    meta["query"] = "\n".join(body).strip() + "\n"
+    meta["query"] = render_category_tokens("\n".join(body).strip() + "\n")
+    meta["notes"] = [render_category_tokens(n) for n in meta["notes"]]
     meta["file"] = path.name
     return meta
 
@@ -342,7 +379,7 @@ def build_workbook():
         if key in intro_by_tab:
             items.append(_markdown(f"intro - {key}", intro_by_tab[key], key))
         if key == "evidence":
-            items.append(_markdown("evidence - limitations", EVIDENCE_TEXT, key))
+            items.append(_markdown("evidence - limitations", render_category_tokens(EVIDENCE_TEXT), key))
         if key == "history":
             no_ws = _markdown("history - no workspace", HISTORY_NO_WORKSPACE)
             no_ws["conditionalVisibilities"] = [
@@ -364,4 +401,5 @@ def build_workbook():
 
 
 def render(workbook):
-    return json.dumps(workbook, indent=1, ensure_ascii=False) + "\n"
+    # Compact: the generated JSON must stay under Bicep's 131072-character loadTextContent limit.
+    return json.dumps(workbook, ensure_ascii=False, separators=(",", ":")) + "\n"

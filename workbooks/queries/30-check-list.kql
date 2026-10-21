@@ -9,6 +9,6 @@
 // @nodata No Fresh reports with checks in scope.
 //#include freshchecks
 | where '{Family}' == '*' or family == '{Family}'
-| summarize machinesTested = dcount(machineId), machinesFailing = dcountif(machineId, checkStatus == 'NonCompliant'), reasonsReported = sum(reasonCount), category = take_any(category) by family, checkKey
+| summarize machinesTested = dcount(machineId), machinesFailing = dcountif(machineId, checkStatus == 'NonCompliant'), reasonsReported = sum(reasonCount), category = take_any(category), categorySource = take_any(categorySource) by family, checkKey
 | extend failingPercent = iff(machinesTested == 0, real(null), round(100.0 * machinesFailing / machinesTested, 2))
 | order by machinesFailing desc, checkKey asc

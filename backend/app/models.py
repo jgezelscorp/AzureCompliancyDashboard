@@ -63,6 +63,8 @@ class Check(ApiModel):
     name: str = Field(min_length=1)
     compliance_status: Literal["Compliant", "NonCompliant"]
     category: str | None = None
+    category_source: Literal["source", "derived", "override", "unmapped"] | None = None
+    category_rule_version: int | None = None
     severity: Severity | None = None
     benchmark_control_id: str | None = None
     reasons: list[CheckReason]

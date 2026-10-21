@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     logs_max_records_per_drain: int = Field(default=50_000, ge=1)
     # "<policyDefinitionGuidOrId>=<BaselineFamily>,..."; unmapped policy states stay unclassified
     policy_family_map: Annotated[dict[str, str], NoDecode] = Field(default_factory=dict)
+    # Repo-managed category overrides: JSON list of {type: exact|prefix|regex, pattern, category}
+    category_overrides: str = ""
+    category_overrides_file: str = ""
+
+    @field_validator("category_overrides")
+    @classmethod
+    def _overrides_valid(cls, v: str) -> str:
+        from app.domain.categories import parse_overrides
+
+        parse_overrides(v)
+        return v
 
     @field_validator("policy_family_map", mode="before")
     @classmethod

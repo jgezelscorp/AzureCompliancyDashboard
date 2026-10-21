@@ -18,6 +18,7 @@ import {
   FAMILIES,
   FAMILY_LABEL,
   QUALITY_LABEL,
+  categoryProvenance,
   formatPercent,
   formatTimestamp,
   qualityTone,
@@ -91,7 +92,8 @@ export function TechnicalView() {
       <h2 id="tech-h">Technical view</h2>
       <p className="detail">
         Snapshot {formatTimestamp(latest.snapshotAt)}
-        {latest.scope.partial && " · You can see only some onboarded scopes; figures cover those only."}
+        {latest.scope.partial &&
+          " · You can see only some onboarded scopes; figures cover those only."}
       </p>
       {latest.dataStale && (
         <p role="alert" className="state state-stale">
@@ -170,9 +172,18 @@ export function TechnicalView() {
         options={(() => {
           const sub = scope ? { subscriptionId: scope } : {};
           return [
-            { label: "Export checks CSV", request: { format: "csv", dataset: "checks", family, ...sub } },
-            { label: "Export machines CSV", request: { format: "csv", dataset: "machines", family, ...sub } },
-            { label: "Export technical PDF", request: { format: "pdf", template: "technical", family, ...sub } },
+            {
+              label: "Export checks CSV",
+              request: { format: "csv", dataset: "checks", family, ...sub },
+            },
+            {
+              label: "Export machines CSV",
+              request: { format: "csv", dataset: "machines", family, ...sub },
+            },
+            {
+              label: "Export technical PDF",
+              request: { format: "pdf", template: "technical", family, ...sub },
+            },
           ];
         })()}
       />
@@ -241,32 +252,47 @@ function CategoryTable(props: {
             reports are not counted as passing.
           </Empty>
         ) : (
-          <table>
-            <caption className="sr-only">Check results by category</caption>
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">Checks</th>
-                <th scope="col">Pass rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.data.categories.map((c: CategoryRow) => (
-                <tr key={c.category}>
-                  <th scope="row">
-                    <button type="button" onClick={() => props.onOpen(c.category)}>
-                      {c.category}
-                    </button>
-                  </th>
-                  <td>{c.checks}</td>
-                  <td>
-                    {formatPercent(c.percent)} ({c.passed}/{c.total}){" "}
-                    <ToneBadge tone={toneFor(c.percent, false)} />
-                  </td>
+          <>
+            <p className="detail">
+              Categories not provided by the source report are grouped by app heuristic rules (see
+              provenance). They are not benchmark or certification mappings.
+            </p>
+            <table>
+              <caption className="sr-only">Check results by category</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">Checks</th>
+                  <th scope="col">Pass rate</th>
+                  <th scope="col">Category provenance</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {state.data.categories.map((c: CategoryRow) => {
+                  const prov = categoryProvenance(c.categorySource, c.categoryRuleVersion);
+                  return (
+                    <tr key={c.category}>
+                      <th scope="row">
+                        <button type="button" onClick={() => props.onOpen(c.category)}>
+                          {c.category}
+                        </button>
+                      </th>
+                      <td>{c.checks}</td>
+                      <td>
+                        {formatPercent(c.percent)} ({c.passed}/{c.total}){" "}
+                        <ToneBadge tone={toneFor(c.percent, false)} />
+                      </td>
+                      <td>
+                        <span className="detail" title={prov.hint}>
+                          {prov.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
         ))}
     </section>
   );
@@ -308,7 +334,14 @@ function CheckTable(props: {
                     <button type="button" onClick={() => props.onOpen(c.checkKey)}>
                       {c.name}
                     </button>
-                    <div className="detail">{c.benchmarkControlId ?? c.checkKey}</div>
+                    <div className="detail">
+                      {c.benchmarkControlId ?? c.checkKey} ·{" "}
+                      <span
+                        title={categoryProvenance(c.categorySource, c.categoryRuleVersion).hint}
+                      >
+                        {categoryProvenance(c.categorySource, c.categoryRuleVersion).label}
+                      </span>
+                    </div>
                   </th>
                   <td>{c.machinesFailed}</td>
                   <td>{c.machinesPassed}</td>
@@ -364,7 +397,8 @@ function CheckMachineTable(props: { family: MetricFamily; checkKey: string; scop
                       : m.reasons.map((r) => (
                           <div key={r.phrase}>
                             {r.phrase}
-                            {r.expected != null && ` (expected ${r.expected}, actual ${r.actual ?? "n/a"})`}
+                            {r.expected != null &&
+                              ` (expected ${r.expected}, actual ${r.actual ?? "n/a"})`}
                           </div>
                         ))}
                   </td>

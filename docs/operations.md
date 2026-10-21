@@ -30,7 +30,7 @@ Hardening in `docker-compose.yml`: non-root users, `read_only` root filesystems 
 
 ## Configuration
 
-See `.env.example`. New in this work: `ACD_RATE_LIMIT_PER_MINUTE`, `ACD_LOG_LEVEL`, `ACD_EXPORT_PURGE_INTERVAL_MINUTES`.
+See `.env.example`. New in this work: `ACD_RATE_LIMIT_PER_MINUTE`, `ACD_LOG_LEVEL`, `ACD_EXPORT_PURGE_INTERVAL_MINUTES`, `ACD_CATEGORY_OVERRIDES` / `ACD_CATEGORY_OVERRIDES_FILE` (check category overrides, see `docs/check-categories.md`).
 
 ## Start, stop, upgrade
 

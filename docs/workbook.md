@@ -34,6 +34,7 @@ Parameters: **Subscriptions** (multi-select, default all you can read), **Resour
 - Check pass rate counts unique check keys in Fresh reports; reasons are shown but never counted as checks. Stale reports are excluded and counted (`reportsExcludedAsNotFresh`).
 - Coverage denominator is Windows-eligible machines; Unknown OS evidence is reported separately.
 - Live mode has no history: the overview shows evidence age, **not** a trend. Trend needs stored snapshots (enhanced mode I08, or the app).
+- Categories are **derived** by app rules generated from `backend/app/domain/check_categories.json` (shown with source and rules version); they are heuristics, not benchmark mappings. See `docs/check-categories.md`.
 
 ## Query reference and assumptions
 
