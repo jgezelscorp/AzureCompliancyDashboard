@@ -1,0 +1,15 @@
+// @id hist-delivery
+// @tab history
+// @source logs
+// @title Collection runs and delivery lag (Logs snapshot time, not live)
+// @note Every time shown here is the collector snapshot time stored in Log Analytics. It is not the live state in Azure; the Overview tab is the live view.
+// @note Delivery lag = Log Analytics ingestion time minus snapshot time. Retried deliveries show as larger lag. A missing recent run means the collector did not run or its Logs delivery is backlogged; neither is shown as compliance.
+// @note Rows are de-duplicated on RunId because the Logs Ingestion API is not idempotent and retries can duplicate rows. The earliest ingestion time is used.
+// @note CollectionStatus is the PostgreSQL collection result. Delivery problems never change it.
+// @nodata No collection runs in Log Analytics for the selected time range.
+ComplianceCollectionRuns_CL
+| extend IngestedAt = ingestion_time()
+| summarize IngestedAt = min(IngestedAt), CollectionStatus = take_any(CollectionStatus), ReportsInserted = take_any(ReportsInserted), MachineCount = take_any(MachineCount), ErrorCount = take_any(ErrorCount) by RunId, SnapshotTime = TimeGenerated
+| extend DeliveryLagMinutes = datetime_diff('minute', IngestedAt, SnapshotTime), SnapshotAgeHours = round(datetime_diff('minute', now(), SnapshotTime) / 60.0, 1)
+| project SnapshotTime, RunId, CollectionStatus, MachineCount, ReportsInserted, ErrorCount, IngestedAt, DeliveryLagMinutes, SnapshotAgeHours
+| order by SnapshotTime desc

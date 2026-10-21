@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "Optional Log Analytics reporting sink (enhanced/history mode). Single source of truth for the custom tables, the DCR stream declarations (Bicep) and the collector row mapping (backend). All timestamps are UTC. TimeGenerated is the collection snapshot time (run start), so delivery lag = ingestion_time() - TimeGenerated. RecordKey is a deterministic idempotency key: the Logs Ingestion API is not idempotent, so retries can duplicate rows and every query de-duplicates on RecordKey.",
+  "streamPrefix": "Custom-",
+  "ingestionApiVersion": "2023-01-01",
+  "retention": {
+    "minimumInteractiveDays": 397,
+    "defaultInteractiveDays": 400,
+    "note": "13 calendar months is at most 397 days; Analytics-plan interactive retention (not archive) so history is directly queryable."
+  },
+  "tables": [
+    {
+      "name": "ComplianceCollectionRuns_CL",
+      "description": "One row per collector run. A failed or partial run is recorded as such; sink delivery problems never change these values.",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime", "description": "Run start (snapshot time)." },
+        { "name": "RecordKey", "type": "string", "description": "Idempotency key (hash of stream and run id)." },
+        { "name": "SchemaVersion", "type": "string", "description": "Version of this schema document." },
+        { "name": "SentAt", "type": "datetime", "description": "Collector clock when the batch was sent (last attempt)." },
+        { "name": "RunId", "type": "long", "description": "Collector database run id." },
+        { "name": "StartedAt", "type": "datetime", "description": "Run start." },
+        { "name": "FinishedAt", "type": "datetime", "description": "Run end; null if unknown." },
+        { "name": "CollectionStatus", "type": "string", "description": "succeeded, partial, failed or abandoned." },
+        { "name": "SubscriptionCount", "type": "int", "description": "Configured subscriptions in scope." },
+        { "name": "MachineCount", "type": "int", "description": "Machines seen in inventory." },
+        { "name": "AssignmentCount", "type": "int", "description": "Assignments collected." },
+        { "name": "ReportsInserted", "type": "int", "description": "New reports stored by this run." },
+        { "name": "PolicyStateCount", "type": "int", "description": "Policy states collected." },
+        { "name": "ErrorCount", "type": "int", "description": "Per-source errors recorded (sanitized, not exported)." }
+      ]
+    },
+    {
+      "name": "PolicyComplianceSnapshots_CL",
+      "description": "One row per run and baseline family: the three metrics, kept separate and never blended.",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime", "description": "Snapshot time." },
+        { "name": "RecordKey", "type": "string", "description": "Idempotency key (hash of stream, run id and family)." },
+        { "name": "SchemaVersion", "type": "string", "description": "Version of this schema document." },
+        { "name": "SentAt", "type": "datetime", "description": "Collector clock when the batch was sent (last attempt)." },
+        { "name": "RunId", "type": "long", "description": "Collector database run id." },
+        { "name": "Family", "type": "string", "description": "AzureWindowsBaseline or CISWindowsSecurityBaseline." },
+        { "name": "CollectionStatus", "type": "string", "description": "Status of the run that produced the snapshot." },
+        { "name": "PolicyCompliant", "type": "long", "description": "Compliant policy states." },
+        { "name": "PolicyNonCompliant", "type": "long", "description": "NonCompliant policy states." },
+        { "name": "PolicyExempt", "type": "long", "description": "Exempt policy states (outside the denominator)." },
+        { "name": "PolicyOther", "type": "long", "description": "Other policy states (outside the denominator)." },
+        { "name": "PolicyCompliancePercent", "type": "real", "description": "Compliant / (Compliant + NonCompliant); null when the denominator is 0." },
+        { "name": "ChecksPassed", "type": "long", "description": "Unique checks Compliant in Fresh reports." },
+        { "name": "ChecksFailed", "type": "long", "description": "Unique checks NonCompliant in Fresh reports." },
+        { "name": "ChecksTotal", "type": "long", "description": "Unique checks in Fresh reports." },
+        { "name": "CheckPassPercent", "type": "real", "description": "Passed / total; null when total is 0." },
+        { "name": "ReportsExcludedAsNotFresh", "type": "long", "description": "Reports left out of the check pass rate because they were not Fresh." },
+        { "name": "EligibleMachines", "type": "long", "description": "Windows-eligible machines (coverage denominator)." },
+        { "name": "UnknownEligibility", "type": "long", "description": "Machines whose OS evidence is unknown." },
+        { "name": "AssignedMachines", "type": "long", "description": "Eligible machines with an assignment." },
+        { "name": "UsableReportMachines", "type": "long", "description": "Eligible machines with a usable report (Fresh, Stale or UnknownAge)." },
+        { "name": "FreshReportMachines", "type": "long", "description": "Eligible machines with a Fresh report." },
+        { "name": "AssignmentPercent", "type": "real", "description": "Assigned / eligible; null when eligible is 0." },
+        { "name": "UsableReportPercent", "type": "real", "description": "Usable report / eligible; null when eligible is 0." },
+        { "name": "FreshReportPercent", "type": "real", "description": "Fresh report / eligible; null when eligible is 0." },
+        { "name": "UnclassifiedPolicyStates", "type": "long", "description": "Policy states that could not be assigned to a family." }
+      ]
+    },
+    {
+      "name": "MachineConfigReports_CL",
+      "description": "One row per Machine Configuration report newly stored by a run (reports are immutable upstream).",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime", "description": "Snapshot time of the run that stored the report." },
+        { "name": "RecordKey", "type": "string", "description": "Idempotency key (hash of stream and report id)." },
+        { "name": "SchemaVersion", "type": "string", "description": "Version of this schema document." },
+        { "name": "SentAt", "type": "datetime", "description": "Collector clock when the batch was sent (last attempt)." },
+        { "name": "RunId", "type": "long", "description": "Collector database run id." },
+        { "name": "ReportId", "type": "string", "description": "Report id." },
+        { "name": "AssignmentId", "type": "string", "description": "Guest configuration assignment ARM id." },
+        { "name": "MachineId", "type": "string", "description": "Lower-cased machine ARM id." },
+        { "name": "MachineName", "type": "string", "description": "Machine name." },
+        { "name": "MachineKind", "type": "string", "description": "AzureVM or ArcMachine." },
+        { "name": "SubscriptionId", "type": "string", "description": "Subscription id (not an authorization boundary in Logs)." },
+        { "name": "ResourceGroup", "type": "string", "description": "Resource group." },
+        { "name": "Family", "type": "string", "description": "Baseline family." },
+        { "name": "ComplianceStatus", "type": "string", "description": "Reported state of the report." },
+        { "name": "ReportStartTime", "type": "datetime", "description": "Report start." },
+        { "name": "ReportEndTime", "type": "datetime", "description": "Report end; freshness is judged on this." },
+        { "name": "OperationType", "type": "string", "description": "Operation type if supplied." },
+        { "name": "ConfigurationVersion", "type": "string", "description": "Configuration version if supplied." },
+        { "name": "CheckCount", "type": "int", "description": "Unique checks in the report." },
+        { "name": "FailedCheckCount", "type": "int", "description": "Unique checks NonCompliant." }
+      ]
+    },
+    {
+      "name": "MachineConfigChecks_CL",
+      "description": "One row per check of a newly stored report. Reasons are carried as phrase and code only (never counted as checks).",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime", "description": "Snapshot time of the run that stored the report." },
+        { "name": "RecordKey", "type": "string", "description": "Idempotency key (hash of stream, report id and check key)." },
+        { "name": "SchemaVersion", "type": "string", "description": "Version of this schema document." },
+        { "name": "SentAt", "type": "datetime", "description": "Collector clock when the batch was sent (last attempt)." },
+        { "name": "RunId", "type": "long", "description": "Collector database run id." },
+        { "name": "ReportId", "type": "string", "description": "Report id (joins to MachineConfigReports_CL)." },
+        { "name": "MachineId", "type": "string", "description": "Lower-cased machine ARM id." },
+        { "name": "SubscriptionId", "type": "string", "description": "Subscription id (not an authorization boundary in Logs)." },
+        { "name": "Family", "type": "string", "description": "Baseline family." },
+        { "name": "CheckKey", "type": "string", "description": "Source check/resource id." },
+        { "name": "CheckName", "type": "string", "description": "Check display name." },
+        { "name": "ComplianceStatus", "type": "string", "description": "Compliant or NonCompliant." },
+        { "name": "Category", "type": "string", "description": "Source-backed category or empty." },
+        { "name": "Severity", "type": "string", "description": "Severity if supplied." },
+        { "name": "BenchmarkControlId", "type": "string", "description": "Benchmark control id only when verified; usually empty." },
+        { "name": "ReportEndTime", "type": "datetime", "description": "End time of the owning report." },
+        { "name": "Reasons", "type": "dynamic", "description": "Array of {phrase, code}; truncated." }
+      ]
+    }
+  ]
+}

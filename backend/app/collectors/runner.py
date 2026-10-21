@@ -34,6 +34,7 @@ from app.config import Settings
 from app.db import CollectionRunRow, ReportRow
 from app.metrics.store import load_bundle, write_snapshots
 from app.models import Assignment, Machine, PolicyState, Report
+from app.sink.service import LogsSink
 
 log = logging.getLogger(__name__)
 
@@ -83,7 +84,9 @@ class CollectionRunner:
         session_factory: Callable[[], Session],
         client: ArmClient,
         clock: Callable[[], datetime] = utcnow,
+        sink: LogsSink | None = None,
     ) -> None:
+        self._sink = sink
         self._settings = settings
         self._session_factory = session_factory
         self._client = client
@@ -130,6 +133,11 @@ class CollectionRunner:
             log.exception("collection run failed")
             fatal = f"{type(exc).__name__}: {str(exc)[:300]}"
         self._finish(run_id, status, errors, counts, fatal)
+        if self._sink is not None:
+            try:
+                self._sink.publish(run_id)
+            except Exception:  # never alters the committed collection
+                log.exception("Logs sink failed for run %s", run_id)
         return RunResult(run_id, status, counts, errors)
 
     def _finish(

@@ -47,4 +47,4 @@ npm run dev
 
 **Workbook** (`workbooks/`): see `docs/workbook.md`. `python scripts/validate_workbook.py --bicep` and `pytest tests/workbook`.
 
-
+**Enhanced / history mode (optional)**: Log Analytics tables, Bicep and the backend sink, see `docs/logs-reporting.md`. Workbook-only and app-only modes work without it.

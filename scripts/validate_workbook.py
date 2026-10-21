@@ -12,10 +12,12 @@ import sys
 from jsonschema import Draft202012Validator
 
 from workbook_lib import (
-    KNOWN_PARAMETERS, ROOT, TABS, WORKBOOK_PATH, build_workbook, load_queries, render,
+    KNOWN_PARAMETERS, LOGS_TABLES, ROOT, SCOPE_ONLY_PARAMETERS, TABS, WORKBOOK_PATH, build_workbook,
+    load_queries, render,
 )
 
 BICEP = ROOT / "infra" / "bicep" / "workbook" / "main.bicep"
+REPORTING_BICEP = ROOT / "infra" / "bicep" / "reporting" / "main.bicep"
 BICEP_LOAD_LIMIT = 131072  # loadTextContent maximum file size
 ALLOWED_TABLES = {"resources", "guestconfigurationresources", "policyresources", "resourcecontainers"}
 FORBIDDEN_KQL = re.compile(r"\b(limit|take|sample|top)\b|^\s*\.|\bexternaldata\b|\bhttp_request\b|\bunion\s+\*", re.I | re.M)
@@ -41,6 +43,10 @@ WORKBOOK_SCHEMA = {
                     "type": "object",
                     "required": ["parameterName", "comparison", "value"],
                 },
+                "conditionalVisibilities": {
+                    "type": "array", "minItems": 1,
+                    "items": {"type": "object", "required": ["parameterName", "comparison", "value"]},
+                },
             },
             "allOf": [
                 {"if": {"properties": {"type": {"const": 1}}},
@@ -51,11 +57,14 @@ WORKBOOK_SCHEMA = {
                      "required": ["version", "query", "queryType", "resourceType", "crossComponentResources", "visualization"],
                      "properties": {
                          "version": {"const": "KqlItem/1.0"},
-                         "queryType": {"const": 1},
-                         "resourceType": {"const": "microsoft.resourcegraph/resources"},
+                         "queryType": {"enum": [0, 1]},
+                         "resourceType": {"enum": ["microsoft.resourcegraph/resources",
+                                                   "microsoft.operationalinsights/workspaces"]},
                          "visualization": {"enum": ["table", "barchart"]},
                          "query": {"type": "string", "minLength": 10},
-                     }}}}},
+                     }}},
+                          "anyOf": [{"required": ["conditionalVisibility"]},
+                                    {"required": ["conditionalVisibilities"]}]}},
                 {"if": {"properties": {"type": {"const": 9}}},
                  "then": {"properties": {"content": {
                      "type": "object", "required": ["parameters"],
@@ -88,14 +97,27 @@ def check_kql(q, errors):
         errors.append(f"{where}: odd number of single quotes")
     if FORBIDDEN_KQL.search(code):
         errors.append(f"{where}: forbidden construct (limit/take/sample/top, control command, external data)")
-    tables = set(re.findall(r"(?:^|=|\n)\s*(resources|guestconfigurationresources|policyresources|resourcecontainers)\b", code, re.I))
-    if not tables:
-        errors.append(f"{where}: does not read an allowed Resource Graph table")
-    if not tables <= ALLOWED_TABLES:
-        errors.append(f"{where}: table outside allow list {tables - ALLOWED_TABLES}")
+    logs = q.get("source") == "logs"
+    if q.get("source") not in ("arg", "logs"):
+        errors.append(f"{where}: unknown @source {q.get('source')}")
+    if logs:
+        used = set(re.findall(r"\b\w+_CL\b", code))
+        if not used or not used <= LOGS_TABLES:
+            errors.append(f"{where}: logs query must read only the reporting tables {sorted(LOGS_TABLES)}; found {sorted(used)}")
+        if re.search(r"(?:^|=|\n)\s*(resources|guestconfigurationresources|policyresources|resourcecontainers)\b", code, re.I):
+            errors.append(f"{where}: logs query must not read Resource Graph tables")
+        tables = set()
+    else:
+        if re.search(r"\b\w+_CL\b", code):
+            errors.append(f"{where}: Resource Graph query must not read custom log tables")
+        tables = set(re.findall(r"(?:^|=|\n)\s*(resources|guestconfigurationresources|policyresources|resourcecontainers)\b", code, re.I))
+        if not tables:
+            errors.append(f"{where}: does not read an allowed Resource Graph table")
+        if not tables <= ALLOWED_TABLES:
+            errors.append(f"{where}: table outside allow list {tables - ALLOWED_TABLES}")
     for name in re.findall(r"\{(\w+)\}", text):
-        if name not in KNOWN_PARAMETERS:
-            errors.append(f"{where}: unknown workbook parameter {{{name}}}")
+        if name not in KNOWN_PARAMETERS or name in SCOPE_ONLY_PARAMETERS:
+            errors.append(f"{where}: unknown or scope-only workbook parameter {{{name}}}")
     for stmt in re.findall(r"^let\s+\w+\s*=", text, re.M):
         pass
     lets = len(re.findall(r"^let\s", text, re.M))
@@ -115,7 +137,18 @@ def check_kql(q, errors):
 
 
 def check_contract_constants(queries, errors):
-    joined = "\n".join(q["query"] for q in queries)
+    arg = [q for q in queries if q["source"] == "arg"]
+    logs = "\n".join(q["query"] for q in queries if q["source"] == "logs")
+    joined = "\n".join(q["query"] for q in arg)
+    for needle, why in (
+        ("latestSnapshot - 24h", "24h freshness relative to the latest stored snapshot"),
+        ("min(ReportId)", "deterministic latest report per machine and family"),
+        ("real(null)", "zero denominator yields null"),
+        ("ComplianceCollectionRuns_CL", "delivery lag from collection runs"),
+        ("ingestion_time()", "delivery lag"),
+    ):
+        if needle not in logs:
+            errors.append(f"logs contract constant missing from queries: {why} ({needle})")
     for needle, why in (
         ("ageSeconds <= 86400", "24h freshness threshold"),
         ("'UnknownApplicability'", "unknown eligibility quality"),
@@ -163,6 +196,20 @@ def main() -> int:
             if e["parameterName"] not in params:
                 errors.append(f"{it['name']}: exports undeclared parameter {e['parameterName']}")
     tab_values = {link["subTarget"] for it in workbook["items"] if it["type"] == 11 for link in it["content"]["links"]}
+    for it in workbook["items"]:
+        if it["type"] != 3:
+            continue
+        c = it["content"]
+        is_logs = c["queryType"] == 0
+        if is_logs != (c["resourceType"] == "microsoft.operationalinsights/workspaces"):
+            errors.append(f"{it['name']}: queryType and resourceType disagree")
+        if is_logs:
+            if c["crossComponentResources"] != ["{Workspace}"] or c.get("timeContextFromParameter") != "TimeRange":
+                errors.append(f"{it['name']}: logs item must use {{Workspace}} and the TimeRange parameter")
+            if not any(v["parameterName"] == "Workspace" for v in it.get("conditionalVisibilities", [])):
+                errors.append(f"{it['name']}: logs item must be hidden until a workspace is selected")
+        elif "conditionalVisibilities" in it:
+            errors.append(f"{it['name']}: live item must not depend on a workspace")
     if tab_values != {k for k, _ in TABS}:
         errors.append("tab links do not match the defined tabs")
 
@@ -174,6 +221,10 @@ def main() -> int:
         errors.append("Bicep does not load the workbook JSON")
 
     if "--bicep" in sys.argv:
+        cmd = ["az", "bicep", "build", "--file", str(REPORTING_BICEP), "--stdout"] if shutil.which("az") else ["bicep", "build", str(REPORTING_BICEP), "--stdout"]
+        rep = subprocess.run(cmd, capture_output=True, text=True, shell=sys.platform == "win32")
+        if rep.returncode != 0:
+            errors.append(f"reporting bicep build failed: {rep.stderr.strip()[:500]}")
         cmd = ["az", "bicep", "build", "--file", str(BICEP), "--stdout"] if shutil.which("az") else ["bicep", "build", str(BICEP), "--stdout"]
         result = subprocess.run(cmd, capture_output=True, text=True, shell=sys.platform == "win32")
         if result.returncode != 0:

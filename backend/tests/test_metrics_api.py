@@ -42,6 +42,7 @@ ENDPOINTS = [
     "/api/v1/metrics/checks?family=AzureWindowsBaseline&category=x",
     "/api/v1/metrics/checks/machines?family=AzureWindowsBaseline&checkKey=x",
     "/api/v1/collection/runs",
+    "/api/v1/collection/sink",
     "/api/v1/collection/sources",
 ]
 

@@ -1,0 +1,16 @@
+// @id hist-cat-summary
+// @tab history
+// @source logs
+// @title Fleet-wide categories from stored reports (select a row to filter the checks below)
+// @export family=Family
+// @export category=Category
+// @note Uses the latest stored report per machine and family whose end time is within 24 hours of the latest stored collection snapshot. Older reports are excluded and not counted as passing.
+// @note Only reports delivered to Log Analytics are visible. Reports stored by the app before the sink was enabled are absent, so a machine can look stale or missing here even though the app has data.
+// @note Counts are unique (machine, check) pairs after de-duplicating retried deliveries on (ReportId, CheckKey). Category comes from the source check identifier prefix; no control mapping is claimed.
+// @nodata No fresh stored checks in Log Analytics for the selected time range.
+//#include logs_fresh
+logsFreshChecks
+| where '{Family}' == '*' or Family == '{Family}'
+| summarize totalChecks = count(), failedChecks = countif(CheckStatus == 'NonCompliant'), distinctChecks = dcount(CheckKey), machinesAffected = dcountif(MachineId, CheckStatus == 'NonCompliant') by Family, Category
+| extend failedPercent = iff(totalChecks == 0, real(null), round(100.0 * failedChecks / totalChecks, 2))
+| order by failedChecks desc

@@ -116,3 +116,40 @@ def test_kql_text_carries_contract_constants():
     # the model and the KQL classify the same quality values
     for quality in ("UnknownApplicability", "MissingAssignment", "NoReport", "UnknownAge", "Fresh", "Stale"):
         assert f"'{quality}'" in joined
+
+
+def _log_rows():
+    t0 = kql_model.ts("2025-01-10T12:00:00Z")
+    runs = [{"TimeGenerated": t0}]
+    mk = lambda rid, machine, end: {  # noqa: E731
+        "ReportId": rid, "MachineId": machine, "Family": "AzureWindowsBaseline", "ReportEndTime": end}
+    reports = [
+        mk(1, "m1", t0 - timedelta(hours=1)), mk(2, "m1", t0 - timedelta(hours=1)),  # tie -> min id
+        mk(3, "m2", t0 - timedelta(hours=25)),  # stale vs the latest stored snapshot
+        mk(4, "m3", t0 - timedelta(hours=2)),
+    ]
+    chk = lambda rid, key, st, cat=None: {  # noqa: E731
+        "ReportId": rid, "CheckKey": key, "ComplianceStatus": st, "Category": cat}
+    checks = [chk(1, "a", "Compliant", "Net"), chk(1, "a", "Compliant", "Net"),  # retry duplicate
+              chk(1, "b", "NonCompliant"), chk(2, "a", "NonCompliant"), chk(3, "a", "Compliant"),
+              chk(4, "a", "Compliant")]
+    return runs, reports, checks
+
+
+def test_logs_history_dedupes_retries_and_picks_one_report_per_machine():
+    out = kql_model.logs_fresh_checks(*_log_rows())
+    assert {(c["machineId"], c["checkKey"]) for c in out} == {("m1", "a"), ("m1", "b"), ("m3", "a")}
+    assert [c["category"] for c in out if c["checkKey"] == "b"] == ["Uncategorized"]
+
+
+def test_logs_history_excludes_stale_relative_to_latest_snapshot_not_now():
+    out = kql_model.logs_fresh_checks(*_log_rows())
+    assert all(c["machineId"] != "m2" for c in out)
+
+
+def test_logs_queries_read_only_reporting_tables_and_show_lag():
+    logs = [q for q in load_queries() if q["source"] == "logs"]
+    assert {q["tab"] for q in logs} == {"history"} and len(logs) >= 6
+    joined = "\n".join(q["query"] for q in logs)
+    assert "ingestion_time()" in joined and "min(ReportId)" in joined and "latestSnapshot - 24h" in joined
+    assert not [q for q in load_queries() if q["source"] == "arg" and "_CL" in q["query"]]

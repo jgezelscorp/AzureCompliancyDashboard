@@ -11,6 +11,7 @@ from app.collectors.runner import CollectionRunner
 from app.collectors.scheduler import CollectionScheduler
 from app.config import get_settings
 from app.database import get_engine
+from app.sink.service import build_sink
 
 
 def main() -> None:
@@ -23,7 +24,7 @@ def main() -> None:
         allowed_subscriptions=frozenset(settings.subscription_ids),
         max_retries=settings.arm_max_retries,
     )
-    runner = CollectionRunner(settings, factory, client)
+    runner = CollectionRunner(settings, factory, client, sink=build_sink(settings, factory))
     scheduler = CollectionScheduler(runner, timedelta(hours=settings.collection_interval_hours))
     asyncio.run(scheduler.run_forever())
 

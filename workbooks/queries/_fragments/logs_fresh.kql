@@ -1,0 +1,13 @@
+let latestSnapshot = toscalar(ComplianceCollectionRuns_CL | summarize max(TimeGenerated));
+let latestEnd = MachineConfigReports_CL
+    | summarize ReportEndTime = max(ReportEndTime) by MachineId, Family;
+let latestReport = MachineConfigReports_CL
+    | join kind=inner latestEnd on MachineId, Family, ReportEndTime
+    | summarize ReportId = min(ReportId) by MachineId, Family, ReportEndTime;
+let dedupedChecks = MachineConfigChecks_CL
+    | summarize CheckStatus = take_any(ComplianceStatus), CheckName = take_any(CheckName), CheckCategory = take_any(Category) by ReportId, CheckKey;
+let logsFreshChecks = latestReport
+    | where ReportEndTime >= latestSnapshot - 24h
+    | join kind=inner dedupedChecks on ReportId
+    | extend Category = iff(isempty(CheckCategory), 'Uncategorized', CheckCategory)
+    | project MachineId, Family, ReportId, ReportEndTime, CheckKey, CheckName, CheckStatus, Category;
