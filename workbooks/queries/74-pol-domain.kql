@@ -1,0 +1,17 @@
+// @id pol-domain
+// @tab policy
+// @title Azure Policy compliance by security domain (policy state rows)
+// @note Domain taxonomy v__TAXONOMY_VERSION__, generated from the app's data file. source = definition metadata category; derived-low = display-name keyword; unmapped = other. Manual overrides exist only in the app.
+// @note Grain is the policy state row. Percent = Compliant / (Compliant + NonCompliant); Exempt and other states are counted apart. Machine Configuration checks are not mixed in.
+// @note Each policy definition belongs to exactly one domain. Framework tags are indicative and shown only in the app.
+// @nodata No policy states visible in scope.
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where '*' in ({ResourceGroups}) or resourceGroup in~ ({ResourceGroups})
+| extend state = tostring(properties.complianceState), defName = tolower(tostring(properties.policyDefinitionName))
+| join kind=leftouter (policyresources | where type =~ 'microsoft.authorization/policydefinitions' | project defName = tolower(name), defCategory = trim(@'\s', tostring(properties.metadata.category)), defDisplay = tostring(properties.displayName)) on defName
+| extend dk = __DOMAIN_CASE(defCategory, defDisplay)__
+| extend domain = tostring(split(dk, '|')[0]), provenance = tostring(split(dk, '|')[1])
+| summarize compliant = countif(state =~ 'Compliant'), nonCompliant = countif(state =~ 'NonCompliant'), exempt = countif(state =~ 'Exempt'), otherStates = countif(state !in~ ('Compliant', 'NonCompliant', 'Exempt')), nonCompliantResources = dcountif(tolower(tostring(properties.resourceId)), state =~ 'NonCompliant'), policies = dcount(defName), provenanceMix = make_set(provenance) by domain
+| extend policyCompliancePercent = iff(compliant + nonCompliant == 0, real(null), round(100.0 * compliant / (compliant + nonCompliant), 2))
+| order by nonCompliant desc

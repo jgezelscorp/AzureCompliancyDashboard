@@ -12,13 +12,12 @@ import sys
 from jsonschema import Draft202012Validator
 
 from workbook_lib import (
-    KNOWN_PARAMETERS, LOGS_TABLES, ROOT, SCOPE_ONLY_PARAMETERS, TABS, WORKBOOK_PATH, build_workbook,
+    BICEP_LOAD_LIMIT, KNOWN_PARAMETERS, LOGS_TABLES, PART_PATHS, ROOT, SCOPE_ONLY_PARAMETERS, TABS, WORKBOOK_PATH, build_workbook,
     load_queries, render,
 )
 
 BICEP = ROOT / "infra" / "bicep" / "workbook" / "main.bicep"
 REPORTING_BICEP = ROOT / "infra" / "bicep" / "reporting" / "main.bicep"
-BICEP_LOAD_LIMIT = 131072  # loadTextContent maximum file size
 ALLOWED_TABLES = {"resources", "guestconfigurationresources", "policyresources", "resourcecontainers"}
 FORBIDDEN_KQL = re.compile(r"(?<!mv-expand )\b(limit|take|sample|top)\b|^\s*\.|\bexternaldata\b|\bhttp_request\b|\bunion\s+\*", re.I | re.M)
 GUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -202,8 +201,9 @@ def main() -> int:
         errors.append(f"workbook schema: {'/'.join(map(str, err.absolute_path))}: {err.message}")
     if raw.replace("\r\n", "\n") != render(build_workbook()):
         errors.append("workbook JSON is out of date; run python scripts/build_workbook.py")
-    if len(raw) >= BICEP_LOAD_LIMIT:
-        errors.append(f"workbook JSON exceeds Bicep loadTextContent limit ({len(raw)} >= {BICEP_LOAD_LIMIT})")
+    for part in PART_PATHS:
+        if not part.exists() or len(part.read_text(encoding="utf-8")) >= BICEP_LOAD_LIMIT:
+            errors.append(f"workbook part {part.name} missing or over the Bicep loadTextContent limit")
 
     params = {p["name"] for it in workbook["items"] if it["type"] == 9 for p in it["content"]["parameters"]}
     if not KNOWN_PARAMETERS <= params:
@@ -235,7 +235,7 @@ def main() -> int:
     for guid in set(GUID.findall(blob)):
         if guid.lower() not in ALLOWED_GUIDS:
             errors.append(f"unexpected GUID in workbook sources: {guid}")
-    if "loadTextContent('../../../workbooks/azure-compliance.workbook.json')" not in BICEP.read_text(encoding="utf-8"):
+    if "loadTextContent('../../../workbooks/parts/azure-compliance.part2.txt')" not in BICEP.read_text(encoding="utf-8"):
         errors.append("Bicep does not load the workbook JSON")
 
     if "--bicep" in sys.argv:

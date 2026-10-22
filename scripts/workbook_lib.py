@@ -11,6 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERY_DIR = ROOT / "workbooks" / "queries"
 FRAGMENT_DIR = QUERY_DIR / "_fragments"
 WORKBOOK_PATH = ROOT / "workbooks" / "azure-compliance.workbook.json"
+# Bicep loadTextContent is capped at 131072 chars per file; the deployed JSON is loaded as two parts.
+PART_DIR = ROOT / "workbooks" / "parts"
+PART_PATHS = [PART_DIR / "azure-compliance.part1.txt", PART_DIR / "azure-compliance.part2.txt"]
+BICEP_LOAD_LIMIT = 131072
 
 
 TABS = [
@@ -154,8 +158,41 @@ def category_case(expr):
     return "case(" + ", ".join(parts) + f", '{data['defaultCategory']}')"
 
 
+DOMAIN_TAXONOMY_PATH = ROOT / "backend" / "app" / "domain" / "domain_taxonomy.json"
+DOMAIN_TOKEN = re.compile(r"__DOMAIN_CASE\((\w+),\s*(\w+)\)__")
+
+
+def domain_taxonomy():
+    return json.loads(DOMAIN_TAXONOMY_PATH.read_text(encoding="utf-8"))
+
+
+def domain_case(cat_expr, name_expr):
+    """KQL case() equivalent of the policy domain classifier (override layer is app-only).
+
+    Arms yield 'domain|provenance'. Source category (exact, case-insensitive) wins over display-name
+    keywords (derived-low); everything else is 'other|unmapped'. Same data file as the backend.
+    """
+    data = domain_taxonomy()
+    by_domain = {}
+    for category, domain in data["policyCategoryMap"].items():
+        if "'" in category:
+            raise ValueError(f"category {category!r}: single quote not allowed")
+        by_domain.setdefault(domain, []).append(category)
+    parts = []
+    for domain, cats in by_domain.items():
+        listed = ",".join(f"'{c}'" for c in cats)
+        parts.append(f"{cat_expr} in~ ({listed}),'{domain}|source'")
+    for rule in data["policyKeywordRules"]:
+        if "'" in rule["pattern"]:
+            raise ValueError(f"rule {rule['id']}: single quote not allowed")
+        parts.append(f"{name_expr} matches regex @'(?i){rule['pattern']}','{rule['domain']}|derived-low'")
+    return "case(" + ",".join(parts) + f",'{data['defaultDomain']}|unmapped')"
+
+
 def render_category_tokens(text):
     version = str(category_rules()["rulesVersion"])
+    text = DOMAIN_TOKEN.sub(lambda m: domain_case(m.group(1), m.group(2)), text)
+    text = text.replace("__TAXONOMY_VERSION__", str(domain_taxonomy()["taxonomyVersion"]))
     return CATEGORY_TOKEN.sub(lambda m: category_case(m.group(1)), text).replace(
         "__RULES_VERSION__", version
     )
@@ -227,11 +264,16 @@ def _markdown(name, text, tab=None):
     return item
 
 
+def _compact_kql(text):
+    """Single-line KQL (no comments or multi-line strings in our queries) to save serialized size."""
+    return " ".join(line.strip() for line in text.splitlines() if line.strip())
+
+
 def _query_item(q, viz=None, suffix="", with_exports=True):
     logs = q["source"] == "logs"
     content = {
         "version": "KqlItem/1.0",
-        "query": q["query"],
+        "query": _compact_kql(q["query"]),
         "size": 1,
         "title": q["title"] + suffix,
         "noDataMessage": q["nodata"],
@@ -239,7 +281,7 @@ def _query_item(q, viz=None, suffix="", with_exports=True):
         "resourceType": LOGS_WORKSPACE_TYPE if logs else "microsoft.resourcegraph/resources",
         "crossComponentResources": ["{Workspace}"] if logs else ["{Subscriptions}"],
         "visualization": viz or "table",
-        "gridSettings": {"filter": True, "sortBy": []},
+        "gridSettings": {"filter": True},
     }
     if logs:
         content["timeContext"] = {"durationMs": TIME_RANGE_DEFAULT_MS}
@@ -263,12 +305,15 @@ def _query_item(q, viz=None, suffix="", with_exports=True):
     return item
 
 
-def _notes(q):
-    text = "**Query assumptions**\n" + "\n".join(f"- {n}" for n in q["notes"])
-    item = _markdown(f"notes - {q['id']}", text, q["tab"])
-    if q["source"] == "logs":
+def _tab_notes(tab, source, group):
+    """One notes block per tab (and data source) keeps the workbook under the ARM expression limit."""
+    text = "**Query assumptions**\n" + "\n".join(
+        f"- **{q['title']}**\n" + "\n".join(f"  - {n}" for n in q["notes"]) for q in group
+    )
+    item = _markdown(f"notes - {tab}-{source}", text, tab)
+    if source == "logs":
         del item["conditionalVisibility"]
-        item["conditionalVisibilities"] = _logs_visible(q["tab"])
+        item["conditionalVisibilities"] = _logs_visible(tab)
     return item
 
 
@@ -401,13 +446,22 @@ def build_workbook():
             items.append(_query_item(q, "barchart" if chart else "table", with_exports=not chart))
             if chart:
                 items.append(_query_item(q, "table", " (table view)", with_exports=False))
-            items.append(_notes(q))
+        for source in ("arg", "logs"):
+            group = [x for x in queries if x["tab"] == key and x["source"] == source]
+            if group:
+                items.append(_tab_notes(key, source, group))
     return {
         "version": "Notebook/1.0",
         "items": items,
         "fallbackResourceIds": [],
         "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
     }
+
+
+def split_parts(text):
+    """Cut the compact JSON between two top-level items so each part stays under the Bicep limit."""
+    cut = text.find('},{"type":', len(text) // 2) + 2
+    return [text[:cut], text[cut:]]
 
 
 def render(workbook):
