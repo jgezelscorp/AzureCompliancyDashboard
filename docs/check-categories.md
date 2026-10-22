@@ -77,3 +77,7 @@ or `az containerapp update --set-env-vars`.
 - The Log Analytics `Category` column carries only source-backed categories; the
   workbook History tab derives the category from `CheckName` with the same rules.
 - With ARG, the Categories tab is limited by the Kusto `case()` argument cap (30 rules enforced).
+
+## Security domains
+Checks are also mapped to one security domain (CIS section map + rules v1); see `docs/security-domains.md`.
+

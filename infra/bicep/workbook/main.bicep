@@ -18,7 +18,8 @@ param tags object = {}
 @description('Optional Log Analytics workspace resource id preselected on the History tab. Pass at deploy time; leave empty to pick it in the workbook.')
 param defaultWorkspaceResourceId string = ''
 
-var serializedData = replace(loadTextContent('../../../workbooks/azure-compliance.workbook.json'), '__DEFAULT_WORKSPACE_RESOURCE_ID__', defaultWorkspaceResourceId)
+// loadTextContent is limited to 131072 characters per file, so the generated JSON is loaded as two parts.
+var serializedData = replace('${loadTextContent('../../../workbooks/parts/azure-compliance.part1.txt')}${loadTextContent('../../../workbooks/parts/azure-compliance.part2.txt')}', '__DEFAULT_WORKSPACE_RESOURCE_ID__', defaultWorkspaceResourceId)
 
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
   name: workbookName

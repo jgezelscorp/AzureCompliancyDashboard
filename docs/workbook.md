@@ -99,3 +99,7 @@ Nothing here was run against Azure. Verify in a non-production scope before rely
 - Percentages are rounded by KQL `round`; Python uses banker's rounding, so a half-way value may differ in the last digit.
 - Portal workbook access does not grant data access; users only see what Azure RBAC lets them read.
 - History tab (not rendered in the portal, KQL never executed): `conditionalVisibilities` with two conditions, `timeContextFromParameter` and the optional type-5 workspace picker follow published patterns but are unverified. Row-level filtering by subscription is not provided; sharing the workspace shares the history of everything the collector sent.
+
+## Security domain tab
+The Policy estate tab has a 'by security domain' table (query `74-pol-domain.kql`) generated from `backend/app/domain/domain_taxonomy.json`; see `docs/security-domains.md`. Verified against ARG with az rest. Workbook JSON is split into two Bicep-loaded parts only for tooling; the assembled value must stay under the ARM 131,072-character limit.
+

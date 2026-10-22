@@ -36,3 +36,7 @@ Diagnostics: `python -m app.tools.dbcounts` prints table row counts only (read-o
 | `/resource?id=` | Resource detail with its policy states |
 | `/machine?id=` | Machine detail: guest assignments, reports, checks by derived category, policy states, history |
 | `/technical`, `/ciso` | Existing machine baseline views |
+
+## Domain filters
+Policy endpoints accept `domain` and `confidence`; trend responses include `taxonomyVersions`, `taxonomyChanged`, `taxonomyNote`. See `docs/security-domains.md`.
+
