@@ -26,6 +26,8 @@ from app.domain.categories import (
     resolve_category,
     rules_version,
 )
+from app.domain.domain_store import stamp_check
+from app.domain.domains import configured_domain_overrides
 from app.metrics.policy import diff_states
 from app.models import Assignment, Machine, PolicyState, Report
 
@@ -84,21 +86,21 @@ def upsert_assignments(session: Session, assignments: Iterable[Assignment], run_
 def _add_checks(session: Session, report: Report) -> None:
     for c in report.checks:
         resolved = resolve_category(c.name, c.check_key, c.category, configured_overrides())
-        session.add(
-            CheckRow(
-                report_id=report.report_id,
-                check_key=c.check_key,
-                name=c.name,
-                compliance_status=c.compliance_status,
-                category=c.category,
-                derived_category=derive_category(c.name),
-                category_source=resolved.source,
-                category_rule_version=resolved.rule_version,
-                severity=c.severity,
-                benchmark_control_id=c.benchmark_control_id,
-                reasons=[x.model_dump() for x in c.reasons],
-            )
+        row = CheckRow(
+            report_id=report.report_id,
+            check_key=c.check_key,
+            name=c.name,
+            compliance_status=c.compliance_status,
+            category=c.category,
+            derived_category=derive_category(c.name),
+            category_source=resolved.source,
+            category_rule_version=resolved.rule_version,
+            severity=c.severity,
+            benchmark_control_id=c.benchmark_control_id,
+            reasons=[x.model_dump() for x in c.reasons],
         )
+        stamp_check(row, configured_domain_overrides())
+        session.add(row)
 
 
 def recategorize_checks(session: Session) -> int:

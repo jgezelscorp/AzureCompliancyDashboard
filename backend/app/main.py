@@ -4,6 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from app import __version__
+from app.api.domains import router as domains_router
 from app.api.exports import router as exports_router
 from app.api.metrics import router as metrics_router
 from app.api.policy import router as policy_router
@@ -26,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(metrics_router)
     app.include_router(policy_router)
+    app.include_router(domains_router)
     app.include_router(exports_router)
     return app
 

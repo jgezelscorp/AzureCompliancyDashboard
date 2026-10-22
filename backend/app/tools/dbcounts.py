@@ -66,10 +66,30 @@ def check_category_diagnostics(session: Session) -> dict[str, object]:
     }
 
 
+def domain_diagnostics(session: Session) -> dict[str, object]:
+    """Counts only: domain/provenance distribution and unmapped metadata categories."""
+    out: dict[str, object] = {}
+    for table in ("checks", "policy_definitions"):
+        for col in ("domain", "domain_confidence", "domain_version"):
+            rows = session.execute(
+                text(f"SELECT {col}, count(*) FROM {table} GROUP BY {col} ORDER BY 2 DESC")
+            ).all()
+            out[f"{table}.{col}"] = {str(k): int(v) for k, v in rows}
+    unmapped = session.execute(
+        text(
+            "SELECT coalesce(category, '(none)'), count(*) FROM policy_definitions "
+            "WHERE domain_confidence IN ('unmapped', 'derived-low') GROUP BY 1 ORDER BY 2 DESC"
+        )
+    ).all()
+    out["policy_unmapped_or_low_by_category"] = {str(k): int(v) for k, v in unmapped}
+    return out
+
+
 def main() -> None:
     with Session(get_engine(get_settings().database_url)) as session:
         print(json.dumps(collect(session), indent=2, default=str))
         print(json.dumps(check_category_diagnostics(session), indent=2, default=str))
+        print(json.dumps(domain_diagnostics(session), indent=2, default=str))
 
 
 if __name__ == "__main__":

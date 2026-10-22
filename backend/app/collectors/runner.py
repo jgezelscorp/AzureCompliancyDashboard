@@ -32,6 +32,7 @@ from app.collectors.persist import (
 )
 from app.config import Settings
 from app.db import CheckRow, CollectionRunRow, ReportRow
+from app.domain.domain_store import recompute_domains
 from app.metrics.estate_store import write_estate_snapshots
 from app.metrics.store import load_bundle, write_snapshots
 from app.models import Assignment, Machine, PolicyState, Report
@@ -312,6 +313,9 @@ class CollectionRunner:
                     wanted[a["definition_id"]] = True
         with self._session_factory() as session, session.begin():
             meta = estate.resolve_metadata(session, self._client, started, wanted)
+            counts["domainsStamped"] = sum(
+                v for k, v in recompute_domains(session, force=True).items() if k != "version"
+            )
         counts.update({f"definitions_{k}": v for k, v in meta.items()})
 
         status = "succeeded" if not errors else "partial"

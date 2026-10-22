@@ -33,6 +33,10 @@ class PolicyDefinitionRow(Base):
     mode: Mapped[str | None] = mapped_column(String(48))
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     refreshed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    domain: Mapped[str | None] = mapped_column(String(32))
+    domain_source: Mapped[str | None] = mapped_column(String(16))
+    domain_confidence: Mapped[str | None] = mapped_column(String(16))
+    domain_version: Mapped[int | None] = mapped_column(Integer)
 
 
 class PolicyInitiativeRow(Base):
@@ -76,6 +80,24 @@ class PolicyExemptionRow(Base):
     category: Mapped[str | None] = mapped_column(String(24))
     expires_on: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     run_id: Mapped[int | None] = mapped_column(ForeignKey("collection_runs.run_id"))
+
+
+class CategoryOverrideRow(Base):
+    """Reviewer-assigned domain; editing is gated like other shared configuration."""
+
+    __tablename__ = "category_overrides"
+    __table_args__ = (
+        UniqueConstraint("target", "kind", "pattern", name="uq_category_overrides_match"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    target: Mapped[str] = mapped_column(String(16))
+    kind: Mapped[str] = mapped_column(String(16))
+    pattern: Mapped[str] = mapped_column(Text)
+    domain: Mapped[str] = mapped_column(String(32))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class EstateResourceRow(Base):

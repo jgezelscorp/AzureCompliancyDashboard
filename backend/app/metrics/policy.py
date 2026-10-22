@@ -26,6 +26,8 @@ from app.db_policy import (
     PolicyExemptionRow,
     PolicyInitiativeRow,
 )
+from app.domain.domain_store import load_overrides
+from app.domain.domains import DomainResult, classify_policy, domain_label, taxonomy_version
 
 STANDALONE = "__standalone"
 UNCATEGORIZED = "Uncategorized"
@@ -42,6 +44,8 @@ DIMENSIONS = (
     "resourceGroup",
     "location",
     "category",
+    "domain",
+    "domainConfidence",
     "effect",
     "severity",
     "state",
@@ -68,6 +72,7 @@ class EstateData:
     assignments: dict[str, dict[str, Any]] = field(default_factory=dict)
     initiatives: dict[str, dict[str, Any]] = field(default_factory=dict)
     definitions: dict[str, dict[str, Any]] = field(default_factory=dict)
+    domains: dict[str, DomainResult] = field(default_factory=dict)
 
     @property
     def severity_metadata_present(self) -> bool:
@@ -129,11 +134,18 @@ def load_estate(session: Session, subscriptions: frozenset[str]) -> EstateData:
                 "expiresOn": utc(e.expires_on) if e.expires_on else None,
             }
         )
+    overrides = load_overrides(session)
     for s in session.scalars(
         select(PolicyStateRow).where(PolicyStateRow.subscription_id.in_(subs))
     ):
         definition = (s.policy_definition_id or "").lower()
         meta = data.definitions.get(definition, {})
+        category = meta.get("category") or s.state_category
+        if definition not in data.domains:
+            data.domains[definition] = classify_policy(
+                category, meta.get("name") or s.definition_name, definition, overrides
+            )
+        dom = data.domains[definition]
         assignment = s.policy_assignment_id.lower()
         initiative = s.initiative_id
         init_meta = data.initiatives.get(initiative or "", {})
@@ -158,7 +170,10 @@ def load_estate(session: Session, subscriptions: frozenset[str]) -> EstateData:
                 or (tail(initiative) if initiative else "Standalone policy assignments"),
                 "state": s.compliance_state,
                 "effect": (s.effect or meta.get("effect") or "unknown").lower(),
-                "category": meta.get("category") or s.state_category or UNCATEGORIZED,
+                "category": category or UNCATEGORIZED,
+                "domain": dom.domain,
+                "domainSource": dom.source,
+                "domainConfidence": dom.confidence,
                 "severity": meta.get("severity"),
                 "ts": utc(s.state_timestamp),
                 "groups": s.group_names or [],
@@ -181,6 +196,8 @@ class StateFilter:
     definition: tuple[str, ...] = ()
     state: tuple[str, ...] = ()
     category: tuple[str, ...] = ()
+    domain: tuple[str, ...] = ()
+    confidence: tuple[str, ...] = ()
     effect: tuple[str, ...] = ()
     severity: tuple[str, ...] = ()
     tag: tuple[str, ...] = ()  # "key:value"
@@ -204,6 +221,8 @@ def _matches(f: StateFilter, s: dict[str, Any], now: datetime) -> bool:
         (f.definition, s["definition"]),
         (f.state, s["state"]),
         (f.category, s["category"]),
+        (f.domain, s.get("domain", "other")),
+        (f.confidence, s.get("domainConfidence", "unmapped")),
         (f.effect, s["effect"]),
         (f.severity, s["severity"] or "none"),
     )
@@ -299,6 +318,12 @@ def _key_label(dim: str, s: dict[str, Any]) -> tuple[str, str]:
         return s["loc"] or "(global)", s["loc"] or "(global)"
     if dim == "category":
         return s["category"], s["category"]
+    if dim == "domain":
+        d = s.get("domain", "other")
+        return d, domain_label(d)
+    if dim == "domainConfidence":
+        c = s.get("domainConfidence", "unmapped")
+        return c, c
     if dim == "effect":
         return s["effect"], s["effect"]
     if dim == "severity":
@@ -356,6 +381,8 @@ def top_policies(states: list[dict[str, Any]], limit: int = 10) -> list[dict[str
                 "definition": definition,
                 "name": first["definitionName"],
                 "category": first["category"],
+                "domain": first.get("domain", "other"),
+                "domainConfidence": first.get("domainConfidence", "unmapped"),
                 "effect": first["effect"],
                 "severity": first["severity"],
                 "nonCompliant": len(items),
@@ -472,6 +499,18 @@ def snapshot_metrics(
     return {
         "headline": {k: h[k] for k in h if k != "percent" and k != "resourcePercent"},
         "byInitiative": by_initiative,
+        "taxonomyVersion": taxonomy_version(),
+        "byDomain": {
+            r["key"]: {
+                "label": r["label"],
+                "compliant": r["compliant"],
+                "nonCompliant": r["nonCompliant"],
+                "exempt": r["exempt"],
+                "other": r["other"],
+            }
+            for r in breakdown(states, "domain")
+        },
+        "domainMix": {r["key"]: r["evaluations"] for r in breakdown(states, "domainConfidence")},
         "exemptions": ex,
         "inventory": inventory,
         "changes": changes or {},

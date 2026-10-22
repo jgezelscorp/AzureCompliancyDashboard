@@ -129,3 +129,65 @@ def check_machines(
             }
         )
     return sorted(out, key=lambda r: (r["status"] == "Compliant", r["name"].lower()))
+
+
+def _domain_of(c: Check) -> str:
+    return c.domain or "other"
+
+
+def _confidence_of(c: Check) -> str:
+    return c.domain_confidence or "unmapped"
+
+
+def domain_tallies(
+    bundle: EvidenceBundle, family: str, at: datetime, stale_after: timedelta
+) -> dict[str, dict[str, Any]]:
+    """Per security domain: distinct checks, check results (machine x check) and pass rate.
+
+    Each check counts in exactly one domain. Only fresh reports contribute; the grain of
+    ``total``/``passed`` is one check result on one machine.
+    """
+    acc: dict[str, dict[str, Any]] = {}
+    for m, c in _fresh_checks(bundle, family, at, stale_after):
+        a = acc.setdefault(
+            _domain_of(c), {"keys": set(), "machines": set(), "passed": 0, "total": 0}
+        )
+        a["keys"].add(c.check_key)
+        a["machines"].add(m.machine_id)
+        a["passed"] += c.compliance_status == "Compliant"
+        a["total"] += 1
+    return {
+        d: {
+            "checks": len(a["keys"]),
+            "machines": len(a["machines"]),
+            "passed": a["passed"],
+            "total": a["total"],
+            "percent": _ratio(a["passed"], a["total"]),
+        }
+        for d, a in acc.items()
+    }
+
+
+def check_inventory(
+    bundle: EvidenceBundle, family: str, at: datetime, stale_after: timedelta
+) -> list[dict[str, Any]]:
+    """Distinct fresh checks with their domain classification (review queue, provenance mix)."""
+    acc: dict[str, dict[str, Any]] = {}
+    for _, c in _fresh_checks(bundle, family, at, stale_after):
+        row = acc.setdefault(
+            c.check_key,
+            {
+                "checkKey": c.check_key,
+                "name": c.name,
+                "family": family,
+                "category": c.category,
+                "domain": _domain_of(c),
+                "domainSource": c.domain_source or "unmapped",
+                "domainConfidence": _confidence_of(c),
+                "domainVersion": c.domain_version,
+                "machinesPassed": 0,
+                "machinesFailed": 0,
+            },
+        )
+        row["machinesPassed" if c.compliance_status == "Compliant" else "machinesFailed"] += 1
+    return list(acc.values())

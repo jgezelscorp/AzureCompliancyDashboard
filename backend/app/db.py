@@ -73,9 +73,7 @@ class AssignmentRow(Base):
     content_hash: Mapped[str | None] = mapped_column(Text)
     include_arc_machines: Mapped[bool | None] = mapped_column(Boolean)
     compliance_status: Mapped[str] = mapped_column(String(16))
-    last_compliance_status_checked: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_compliance_status_checked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     run_id: Mapped[int | None] = mapped_column(ForeignKey("collection_runs.run_id"))
 
 
@@ -115,6 +113,10 @@ class CheckRow(Base):
     derived_category: Mapped[str | None] = mapped_column(Text)
     category_source: Mapped[str | None] = mapped_column(String(16))
     category_rule_version: Mapped[int | None] = mapped_column(Integer)
+    domain: Mapped[str | None] = mapped_column(String(32))
+    domain_source: Mapped[str | None] = mapped_column(String(16))
+    domain_confidence: Mapped[str | None] = mapped_column(String(16))
+    domain_version: Mapped[int | None] = mapped_column(Integer)
     severity: Mapped[str | None] = mapped_column(String(16))
     benchmark_control_id: Mapped[str | None] = mapped_column(Text)
     reasons: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB)
@@ -126,7 +128,5 @@ class SettingRow(Base):
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
     value: Mapped[dict[str, object]] = mapped_column(JSONB)
     version: Mapped[int] = mapped_column(Integer, server_default="1")
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_by: Mapped[str | None] = mapped_column(Text)
