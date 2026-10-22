@@ -59,6 +59,8 @@ def state_filter(
     definition: Annotated[list[str] | None, Query()] = None,
     state: Annotated[list[str] | None, Query()] = None,
     category: Annotated[list[str] | None, Query()] = None,
+    domain: Annotated[list[str] | None, Query(description="Security domain id")] = None,
+    confidence: Annotated[list[str] | None, Query(description="Domain confidence")] = None,
     effect: Annotated[list[str] | None, Query()] = None,
     severity: Annotated[list[str] | None, Query()] = None,
     tag: Annotated[list[str] | None, Query(description="key:value")] = None,
@@ -82,6 +84,8 @@ def state_filter(
         definition=t(definition),
         state=keep(state),
         category=keep(category),
+        domain=t(domain),
+        confidence=t(confidence),
         effect=t(effect),
         severity=t(severity),
         tag=keep(tag),
@@ -133,6 +137,7 @@ def _series(
             r.run_id,
             {
                 "runId": r.run_id,
+                "taxonomyVersion": m.get("taxonomyVersion"),
                 "at": _utc(r.snapshot_at),
                 "status": r.collection_status,
                 "subscriptions": 0,
@@ -660,6 +665,8 @@ def states_list(
                 "state": s["state"],
                 "effect": s["effect"],
                 "category": s["category"],
+                "domain": s["domain"],
+                "domainConfidence": s["domainConfidence"],
                 "severity": s["severity"],
                 "evaluatedAt": s["ts"].isoformat(),
             }
@@ -746,6 +753,8 @@ def resource_detail(
                 "state": s["state"],
                 "effect": s["effect"],
                 "category": s["category"],
+                "domain": s["domain"],
+                "domainConfidence": s["domainConfidence"],
                 "severity": s["severity"],
                 "evaluatedAt": s["ts"].isoformat(),
             }
@@ -785,8 +794,15 @@ def trend(
     limit: Annotated[int, Query(ge=2, le=MAX_TREND_POINTS)] = 120,
 ) -> dict[str, Any]:
     series = _series(session, scopes, settings, limit)
+    versions = sorted(
+        {p["taxonomyVersion"] for p in series.get("points", []) if p.get("taxonomyVersion")}
+    )
     return {
         **series,
+        "taxonomyVersions": versions,
+        "taxonomyChanged": len(versions) > 1,
+        "taxonomyNote": "Domain breakdowns across points with different taxonomy versions are "
+        "not strictly comparable; headline policy compliance is unaffected.",
         "grain": "policy evaluation; per-run sums over the authorized subscriptions",
         "gapNote": "A gap marker means the interval to the previous sample exceeded twice the "
         "collection interval; nothing is interpolated.",

@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.db import AssignmentRow, CheckRow, MachineRow, ReportRow
 from app.db_history import MachineStatusSnapshotRow, MetricSnapshotRow, PolicyStateRow
-from app.domain.categories import Override, configured_overrides, resolve_category
+from app.domain.categories import Override, configured_overrides, derive_category, resolve_category
+from app.domain.domain_store import load_overrides
+from app.domain.domains import DomainOverride, classify_check
 from app.metrics.engine import FAMILIES, STALE_AFTER, compute, unclassified_policy_states
 from app.models import EvidenceBundle
 
@@ -17,9 +19,22 @@ def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
-def _check_dict(c: CheckRow, overrides: tuple[Override, ...]) -> dict[str, Any]:
+def _check_dict(
+    c: CheckRow, overrides: tuple[Override, ...], domain_overrides: tuple[DomainOverride, ...] = ()
+) -> dict[str, Any]:
     # Effective category is resolved at read time so it is current even if stored columns lag.
     resolved = resolve_category(c.name, c.check_key, c.category, overrides)
+    # Resolved category feeds the domain, so a category override moves the check's domain too.
+    dom = classify_check(
+        c.name,
+        c.check_key,
+        c.benchmark_control_id,
+        c.category,
+        resolved.category
+        if resolved.source in ("derived", "override")
+        else derive_category(c.name),
+        domain_overrides,
+    )
     return {
         "checkKey": c.check_key,
         "name": c.name,
@@ -27,6 +42,10 @@ def _check_dict(c: CheckRow, overrides: tuple[Override, ...]) -> dict[str, Any]:
         "category": resolved.category,
         "categorySource": resolved.source,
         "categoryRuleVersion": resolved.rule_version,
+        "domain": dom.domain,
+        "domainSource": dom.source,
+        "domainConfidence": dom.confidence,
+        "domainVersion": dom.version,
         "severity": c.severity,
         "benchmarkControlId": c.benchmark_control_id,
         "reasons": c.reasons or [],
@@ -78,6 +97,7 @@ def load_bundle(
             latest.setdefault((r.machine_id, r.baseline_family), r)
     checks_by_report: dict[str, list[CheckRow]] = {}
     overrides = configured_overrides()
+    domain_overrides = load_overrides(session)
     if latest:
         wanted = {r.report_id for r in latest.values()}
         for c in session.scalars(select(CheckRow).where(CheckRow.report_id.in_(wanted))):
@@ -123,7 +143,8 @@ def load_bundle(
                     "startTime": _utc(r.start_time),
                     "endTime": _utc(r.end_time),
                     "checks": [
-                        _check_dict(c, overrides) for c in checks_by_report.get(r.report_id, [])
+                        _check_dict(c, overrides, domain_overrides)
+                        for c in checks_by_report.get(r.report_id, [])
                     ],
                 }
                 for r in latest.values()

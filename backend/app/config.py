@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Repo-managed category overrides: JSON list of {type: exact|prefix|regex, pattern, category}
     category_overrides: str = ""
     category_overrides_file: str = ""
+    # Domain overrides: JSON list of {target: policy|check, type, pattern, domain}.
+    domain_overrides: str = ""
+    domain_overrides_file: str = ""
     # Estate-wide policy view: only these tag keys are stored (tag values may hold personal data).
     estate_tag_keys: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
@@ -69,6 +72,14 @@ class Settings(BaseSettings):
         from app.domain.categories import parse_overrides
 
         parse_overrides(v)
+        return v
+
+    @field_validator("domain_overrides")
+    @classmethod
+    def _domain_overrides_valid(cls, v: str) -> str:
+        from app.domain.domains import parse_domain_overrides
+
+        parse_domain_overrides(v)
         return v
 
     @field_validator("policy_family_map", mode="before")

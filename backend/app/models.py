@@ -65,6 +65,10 @@ class Check(ApiModel):
     category: str | None = None
     category_source: Literal["source", "derived", "override", "unmapped"] | None = None
     category_rule_version: int | None = None
+    domain: str | None = None
+    domain_source: Literal["source", "derived", "override", "unmapped"] | None = None
+    domain_confidence: str | None = None
+    domain_version: int | None = None
     severity: Severity | None = None
     benchmark_control_id: str | None = None
     reasons: list[CheckReason]

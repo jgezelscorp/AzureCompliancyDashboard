@@ -14,6 +14,7 @@ from app.collectors.runner import CollectionRunner
 from app.collectors.scheduler import CollectionScheduler
 from app.config import get_settings
 from app.database import get_engine
+from app.domain.domain_store import recompute_domains
 from app.logging_config import configure_logging
 from app.onboarding import seed_configured_scopes
 from app.sink.service import build_sink
@@ -51,6 +52,9 @@ def main() -> None:
         updated = recategorize_checks(session)
     if updated:
         log.info("recategorized stored checks", extra={"count": updated})
+    with factory() as session, session.begin():
+        stamped = recompute_domains(session, force=bool(updated))
+    log.info("security domains stamped", extra=stamped)
     client = ArmClient(
         HttpxTransport(),
         AzureIdentityTokenProvider(),
