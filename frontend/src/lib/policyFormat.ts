@@ -49,8 +49,9 @@ export function toneOfPercent(p: number | null): "good" | "warn" | "bad" | "noda
 export function drillSearch(drill: Drill | null, extra: Record<string, string> = {}): string {
   const q = new URLSearchParams();
   if (drill) {
-    q.set("tab", drill.tab);
-    for (const [k, v] of Object.entries(drill.params)) {
+    const tab = drill.tab ?? drill.page;
+    if (tab) q.set("tab", tab);
+    for (const [k, v] of Object.entries(drill.params ?? {})) {
       for (const x of Array.isArray(v) ? v : [v]) q.append(k, String(x));
     }
   }
