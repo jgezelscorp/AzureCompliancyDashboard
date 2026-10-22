@@ -66,7 +66,7 @@ Store_ = Annotated[OnboardingStore, Depends(get_store)]
 
 
 @router.get("/auth/config", response_model=AuthConfigResponse, response_model_by_alias=True)
-def auth_config(s: Settings_) -> AuthConfigResponse:
+async def auth_config(s: Settings_) -> AuthConfigResponse:
     """Public, non-secret values the SPA needs for authorization-code + PKCE."""
     return AuthConfigResponse(
         authority=f"{s.authority_host}/{s.tenant_id}",
