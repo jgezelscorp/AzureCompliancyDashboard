@@ -6,6 +6,7 @@ import { createMockApi } from "./api/mock";
 import { ApiError } from "./api/client";
 import { createMockPolicyApi } from "./api/policyMock";
 import type { PolicyApi } from "./api/policyClient";
+import { createMockDomainApi } from "./api/domainMock";
 import { deltaView, drillSearch, filtersFromSearch, rowDrill, toCsv } from "./lib/policyFormat";
 import { policyQuery } from "./api/policyClient";
 import type { Kpi } from "./api/policyTypes";
@@ -13,7 +14,7 @@ import type { Kpi } from "./api/policyTypes";
 function renderOverview(policyApi: PolicyApi = createMockPolicyApi()) {
   return render(
     <MemoryRouter initialEntries={["/overview"]}>
-      <App api={createMockApi()} policyApi={policyApi} />
+      <App api={createMockApi()} policyApi={policyApi} domainApi={createMockDomainApi()} />
     </MemoryRouter>,
   );
 }

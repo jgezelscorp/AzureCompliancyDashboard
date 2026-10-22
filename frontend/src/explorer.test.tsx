@@ -5,6 +5,7 @@ import App from "./App";
 import { createMockApi } from "./api/mock";
 import { createMockPolicyApi } from "./api/policyMock";
 import type { PolicyApi } from "./api/policyClient";
+import { createMockDomainApi } from "./api/domainMock";
 
 function Where() {
   const l = useLocation();
@@ -14,7 +15,7 @@ function Where() {
 function renderAt(path: string, policyApi: PolicyApi = createMockPolicyApi()) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <App api={createMockApi()} policyApi={policyApi} />
+      <App api={createMockApi()} policyApi={policyApi} domainApi={createMockDomainApi()} />
       <Where />
     </MemoryRouter>,
   );

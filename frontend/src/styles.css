@@ -524,3 +524,46 @@ tbody tr:hover {
     overflow-x: auto;
   }
 }
+
+  /* Security domains */
+  .domain-chip {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .domain-cell {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .mix {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    margin: 0.25rem 0;
+    padding: 0;
+    list-style: none;
+  }
+  .conf-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    border: 0;
+    padding: 0;
+  }
+  .assign {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .disclaimer {
+    border-left: 4px solid var(--warn);
+    padding-left: 0.6rem;
+    background: var(--warn-bg);
+    color: var(--warn);
+  }

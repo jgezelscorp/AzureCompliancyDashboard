@@ -106,6 +106,8 @@ export interface TopPolicy {
   affectedResources: number;
   assignments: number;
   initiatives: string[];
+  domain?: string;
+  domainConfidence?: string;
 }
 
 export interface StateRow {
@@ -125,6 +127,8 @@ export interface StateRow {
   effect: string;
   category: string;
   severity: string;
+  domain?: string;
+  domainConfidence?: string;
   evaluatedAt: string | null;
 }
 
@@ -204,6 +208,7 @@ export interface TrendPoint {
   recoveries: number;
   newNonCompliant: number;
   gapBefore: boolean;
+  taxonomyVersion?: number | null;
 }
 
 export interface Trend {
@@ -213,6 +218,9 @@ export interface Trend {
   note: string;
   grain: string;
   gapNote: string;
+  taxonomyVersions?: number[];
+  taxonomyChanged?: boolean;
+  taxonomyNote?: string;
 }
 
 export interface FilterOption {
@@ -333,6 +341,8 @@ export const FILTER_KEYS = [
   "definition",
   "state",
   "category",
+  "domain",
+  "confidence",
   "effect",
   "severity",
   "tag",

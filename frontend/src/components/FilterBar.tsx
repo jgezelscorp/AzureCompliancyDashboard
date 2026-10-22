@@ -1,4 +1,6 @@
 import type { FilterKey, FilterOption, Filters, FilterOptions } from "../api/policyTypes";
+import { CONFIDENCES } from "../api/domainTypes";
+import { CONFIDENCE_META } from "../lib/domainFormat";
 
 interface Field {
   key: FilterKey;
@@ -40,10 +42,13 @@ export function activeCount(f: Filters): number {
 export function FilterBar({
   filters,
   options,
+  domains,
   onChange,
 }: {
   filters: Filters;
   options: FilterOptions | null;
+  /** Taxonomy domains for the domain filter; the select is hidden until they load. */
+  domains?: { id: string; label: string }[];
   onChange: (next: Filters) => void;
 }) {
   const set = (key: FilterKey, values: string[]) => {
@@ -83,6 +88,22 @@ export function FilterBar({
           </label>
         );
       })}
+      {domains && domains.length > 0 && (
+        <label>
+          Security domain
+          <select value="" onChange={(e) => e.target.value && !(filters.domain ?? []).includes(e.target.value) && set("domain", [...(filters.domain ?? []), e.target.value])}>
+            <option value="">Add…</option>
+            {domains.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </select>
+        </label>
+      )}
+      <label>
+        Domain provenance
+        <select value="" onChange={(e) => e.target.value && !(filters.confidence ?? []).includes(e.target.value) && set("confidence", [...(filters.confidence ?? []), e.target.value])}>
+          <option value="">Add…</option>
+          {CONFIDENCES.map((c) => <option key={c} value={c}>{CONFIDENCE_META[c].label}</option>)}
+        </select>
+      </label>
       {tagKeys.length > 0 && (
         <label>
           Tag (key:value)
