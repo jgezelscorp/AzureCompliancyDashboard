@@ -155,7 +155,7 @@ export default function App({ api, policyApi, domainApi, skipAuth }: { api?: Met
         </div>
       </header>
       <main id="main" tabIndex={-1}>
-        <ErrorBoundary resetKey={location.pathname}>{body}</ErrorBoundary>
+        <ErrorBoundary resetKey={location.pathname} route={location.pathname + location.search}>{body}</ErrorBoundary>
       </main>
     </>
   );

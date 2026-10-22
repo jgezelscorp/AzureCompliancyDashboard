@@ -8,6 +8,7 @@ import { DomainCell, ProvenanceBadge } from "../components/ProvenanceBadge";
 import { useAsync } from "../hooks/useAsync";
 import { CONFIDENCE_META, downloadCsv, familyLabel, queueCsv } from "../lib/domainFormat";
 import { formatWhen } from "../lib/policyFormat";
+import { fmtInt } from "../lib/format";
 
 export interface QueueView {
   qkind: "all" | "policy" | "check";
@@ -102,7 +103,7 @@ export function NeedsCategoryTab({ view, update }: { view: QueueView; update: (p
       ),
     },
     { id: "cur", header: "Current domain", render: (r) => <DomainCell domain={r.domain} label={r.domainLabel} confidence={r.domainConfidence} source={r.domainSource} /> },
-    { id: "ev", header: "Evaluations", numeric: true, render: (r) => `${r.nonCompliant.toLocaleString("en")} of ${r.evaluations.toLocaleString("en")} failing` },
+    { id: "ev", header: "Evaluations", numeric: true, render: (r) => `${fmtInt(r.nonCompliant)} of ${fmtInt(r.evaluations)} failing` },
     { id: "sug", header: "Suggested", render: (r) => (r.suggestedDomain ? domains.find((d) => d.id === r.suggestedDomain)?.label ?? r.suggestedDomain : "no suggestion") },
     {
       id: "assign",
@@ -175,7 +176,7 @@ export function NeedsCategoryTab({ view, update }: { view: QueueView; update: (p
         ) : (
           <>
             <p className="grain">
-              {queue.data.summary.policy.toLocaleString("en")} policies and {queue.data.summary.check.toLocaleString("en")} checks match. Taxonomy v{queue.data.taxonomyVersion}.
+              {fmtInt(queue.data.summary?.policy)} policies and {fmtInt(queue.data.summary?.check)} checks match. Taxonomy v{queue.data.taxonomyVersion}.
             </p>
             <p className="no-print">
               <button type="button" className="btn" onClick={() => downloadCsv("needs-category.csv", queueCsv(queue.data.rows, queue.data.total))}>Export this page as CSV</button>
