@@ -75,8 +75,8 @@ export async function get<T>(
   return readJson<T>(res, `GET ${path}`);
 }
 
-async function send<T>(
-  method: "POST" | "GET",
+export async function send<T>(
+  method: "POST" | "GET" | "DELETE",
   path: string,
   body: unknown,
   fetchImpl: typeof fetch,
@@ -91,6 +91,7 @@ async function send<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new ApiError(res.status, `${method} ${path} failed with ${res.status}`);
+  if (res.status === 204) return undefined as T;
   return readJson<T>(res, `${method} ${path}`);
 }
 

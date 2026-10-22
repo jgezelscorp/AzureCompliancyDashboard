@@ -3,6 +3,7 @@ import { ApiError } from "../api/client";
 import { useMetricsApi } from "../api/context";
 import { errorText } from "./common";
 import type { ExportJob, ExportRequest } from "../api/types";
+import { downloadCsv } from "../lib/domainFormat";
 import { formatTimestamp } from "../lib/format";
 
 export interface ExportOption {
@@ -72,7 +73,14 @@ function readDismissed(): string[] {
 }
 
 /** Export buttons plus job status. Files are short-lived, re-authorized on download, never linkable. */
-export function ExportControls({ options }: { options: ExportOption[] }) {
+export interface LocalExport {
+  label: string;
+  filename: string;
+  /** Builds CSV text from what is on screen, so it carries the same domain filter and columns. */
+  build: () => string;
+}
+
+export function ExportControls({ options, localExports = [] }: { options: ExportOption[]; localExports?: LocalExport[] }) {
   const api = useMetricsApi();
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const [busy, setBusy] = useState(false);
@@ -174,6 +182,11 @@ export function ExportControls({ options }: { options: ExportOption[] }) {
               onClick={() => void create(o.request)}
             >
               {o.label}
+            </button>
+          ))}
+          {localExports.map((l) => (
+            <button key={l.label} type="button" onClick={() => downloadCsv(l.filename, l.build())}>
+              {l.label}
             </button>
           ))}
         </div>

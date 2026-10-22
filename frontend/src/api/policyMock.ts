@@ -67,6 +67,8 @@ const STATE: StateRow = {
   state: "NonCompliant",
   effect: "audit",
   category: "Storage",
+  domain: "data-protection",
+  domainConfidence: "source",
   severity: "high",
   evaluatedAt: AT,
 };
@@ -104,7 +106,7 @@ const POINTS: TrendPoint[] = [60, 62, 66.7].map((p, i) => ({
   gapBefore: i === 2,
 }));
 
-export function createMockPolicyApi(): PolicyApi {
+export function createMockPolicyApi(opts: { taxonomyChanged?: boolean } = {}): PolicyApi {
   const overview: PolicyOverview = {
     snapshotAt: AT,
     scope: { authorizedSubscriptions: 1, onboardedSubscriptions: 1, partial: false },
@@ -148,7 +150,7 @@ export function createMockPolicyApi(): PolicyApi {
     breakdown: async (dim) => ({ ...breakdown, dimension: dim }),
     topPolicies: async () => ({
       grain: "policy definition",
-      rows: [{ definition: STATE.definition, name: "Synthetic definition", category: "Storage", effect: "audit", severity: "high", nonCompliant: 2, affectedResources: 2, assignments: 1, initiatives: ["Synthetic initiative B"] }],
+      rows: [{ definition: STATE.definition, name: "Synthetic definition", category: "Storage", domain: "data-protection", domainConfidence: "source", effect: "audit", severity: "high", nonCompliant: 2, affectedResources: 2, assignments: 1, initiatives: ["Synthetic initiative B"] }],
     }),
     states: async () => ({ ...page, rows: [STATE], tally: HEADLINE }),
     resources: async () => ({ ...page, rows: [RESOURCE], grain: "resource" }),
@@ -169,6 +171,9 @@ export function createMockPolicyApi(): PolicyApi {
       note: "3 samples so far (collected every 6 h); trends are sampled, not continuous.",
       grain: "policy evaluation",
       gapNote: "A gap marker means the interval exceeded twice the collection interval.",
+      taxonomyVersions: opts.taxonomyChanged ? [1, 2] : [2],
+      taxonomyChanged: Boolean(opts.taxonomyChanged),
+      taxonomyNote: opts.taxonomyChanged ? "The domain taxonomy changed during this window (v1 to v2); domain trends may not be comparable." : undefined,
     }),
     filters: async () => ({
       options: {

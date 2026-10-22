@@ -1,5 +1,5 @@
 {
-  "taxonomyVersion": 1,
+  "taxonomyVersion": 2,
   "description": "App-curated grouping of Azure Policy definitions and Machine Configuration checks into nine security domains. An indicative reporting aid; not a benchmark or certification mapping.",
   "defaultDomain": "other",
   "domains": [
@@ -37,6 +37,9 @@
     "synapse": "data-protection",
     "search": "data-protection",
     "cognitive services": "data-protection",
+    "azure ai services": "data-protection",
+    "managed identity for guest configuration": "identity",
+    "update management center": "endpoint-os",
     "machine learning": "data-protection",
     "attestation": "data-protection",
     "confidential ledger": "data-protection",
