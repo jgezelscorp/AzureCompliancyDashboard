@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMetricsApi } from "../api/context";
+import { useDomainApi } from "../api/domainContext";
 import { usePolicyApi } from "../api/policyContext";
 import { FILTER_KEYS, type BreakdownRow, type Filters, type ResourceRow, type StateRow, type TopPolicy } from "../api/policyTypes";
 import type { MachineRow, MetricFamily } from "../api/types";
@@ -8,9 +9,12 @@ import { StackedBar } from "../components/charts";
 import { ErrorState, Loading } from "../components/common";
 import { DataGrid, type Column } from "../components/DataGrid";
 import { FilterBar, activeCount } from "../components/FilterBar";
+import { DomainCell } from "../components/ProvenanceBadge";
 import { useAsync } from "../hooks/useAsync";
+import { downloadCsv, statesCsv } from "../lib/domainFormat";
 import { FAMILIES, FAMILY_LABEL } from "../lib/format";
 import { drillSearch, filtersFromSearch, fmtPercent, formatWhen, rowDrill, shortType } from "../lib/policyFormat";
+import { NeedsCategoryTab, OverridesTab, type QueueView } from "./NeedsCategoryTab";
 
 const TABS = [
   { id: "states", label: "Policy states" },
@@ -18,28 +22,33 @@ const TABS = [
   { id: "policies", label: "Policies" },
   { id: "initiatives", label: "Initiatives" },
   { id: "machines", label: "Machines" },
+  { id: "needs-category", label: "Needs category" },
+  { id: "overrides", label: "Overrides" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 const PAGE = 50;
 
-interface View {
+interface View extends QueueView {
   tab: TabId;
   filters: Filters;
   sort: string | undefined;
   desc: boolean;
-  offset: number;
 }
 
 function useView(): [View, (patch: Partial<View>) => void] {
   const [params, setParams] = useSearchParams();
   const tabParam = params.get("tab");
   const tab = (TABS.find((t) => t.id === tabParam)?.id ?? "states") as TabId;
+  const kindParam = params.get("qkind");
   const view: View = {
     tab,
     filters: filtersFromSearch(params),
     sort: params.get("sort") ?? undefined,
     desc: params.get("desc") !== "false",
     offset: Math.max(0, Number(params.get("offset")) || 0),
+    qkind: kindParam === "policy" || kindParam === "check" ? kindParam : "all",
+    qconf: params.getAll("qconf").filter(Boolean),
+    qq: params.get("qq") ?? "",
   };
   const update = useCallback(
     (patch: Partial<View>) => {
@@ -52,6 +61,11 @@ function useView(): [View, (patch: Partial<View>) => void] {
       if (next.sort) q.set("sort", next.sort);
       if (next.sort && !next.desc) q.set("desc", "false");
       if (next.offset) q.set("offset", String(next.offset));
+      if (next.tab === "needs-category") {
+        if (next.qkind !== "all") q.set("qkind", next.qkind);
+        for (const c of next.qconf) q.append("qconf", c);
+        if (next.qq) q.set("qq", next.qq);
+      }
       setParams(q, { replace: false });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,6 +88,7 @@ function StatesTab({ view, update }: { view: View; update: (p: Partial<View>) =>
     { id: "state", header: "State", sort: "state", render: (r) => <span className={`badge tone-${stateTone(r.state)}`}>{r.state}</span> },
     { id: "effect", header: "Effect", sort: "effect", render: (r) => r.effect },
     { id: "cat", header: "Category", sort: "category", render: (r) => r.category },
+    { id: "domain", header: "Security domain", render: (r) => <DomainCell domain={r.domain ?? "other"} confidence={r.domainConfidence} /> },
     { id: "ts", header: "Evaluated", sort: "evaluated", render: (r) => formatWhen(r.evaluatedAt) },
   ];
   if (state.status === "loading") return <Loading what="policy states" />;
@@ -83,6 +98,9 @@ function StatesTab({ view, update }: { view: View; update: (p: Partial<View>) =>
     <>
       <p className="grain">
         {d.tally.evaluations.toLocaleString("en")} evaluations match · {d.tally.compliant} compliant · {d.tally.nonCompliant} non-compliant · {d.tally.exempt} exempt · {d.tally.other} not assessed · {fmtPercent(d.tally.percent)} compliant (excludes exempt and not assessed) · {d.tally.nonCompliantResources} of {d.tally.resources} resources failing. Grain: {d.grain}.
+      </p>
+      <p className="no-print">
+        <button type="button" className="btn" onClick={() => downloadCsv("policy-states.csv", statesCsv(d.rows, view.filters))}>Export this page as CSV</button>
       </p>
       <DataGrid caption="Policy states" columns={cols} rows={d.rows} rowKey={(r) => `${r.resourceId}|${r.assignmentId}|${r.definition}`} sort={view.sort ?? "state"} desc={view.desc} onSort={(sort, desc) => update({ sort, desc })} total={d.total} offset={d.offset} limit={PAGE} onPage={(offset) => update({ offset })} />
     </>
@@ -120,6 +138,7 @@ function PoliciesTab({ view }: { view: View }) {
   const cols: Column<TopPolicy>[] = [
     { id: "name", header: "Policy", rowHeader: true, render: (p) => <Link to={`/explorer${drillSearch({ tab: "states", params: { definition: [p.definition], state: ["NonCompliant"] } })}`}>{p.name}</Link> },
     { id: "cat", header: "Category", render: (p) => p.category },
+    { id: "domain", header: "Security domain", render: (p) => <DomainCell domain={p.domain ?? "other"} confidence={p.domainConfidence} /> },
     { id: "effect", header: "Effect", render: (p) => p.effect },
     { id: "sev", header: "Severity", render: (p) => (p.severity && p.severity !== "none" ? p.severity : "not in metadata") },
     { id: "res", header: "Affected resources", numeric: true, render: (p) => p.affectedResources },
@@ -202,12 +221,38 @@ function MachinesTab() {
 
 export function ExplorerPage() {
   const api = usePolicyApi();
+  const domainApi = useDomainApi();
   const [view, update] = useView();
   const options = useAsync((s) => api.filters(s), []);
+  const tax = useAsync((s) => domainApi.taxonomy(s), []);
   useEffect(() => {
     document.title = "Explorer · Azure Compliancy Dashboard";
   }, []);
-  const filterable = view.tab !== "machines";
+  const filterable = view.tab !== "machines" && view.tab !== "needs-category" && view.tab !== "overrides";
+  const domains = tax.status === "ready" ? tax.data.domains : undefined;
+  const domainLabel = (id: string) => domains?.find((d) => d.id === id)?.label ?? id;
+  const drilled = filterable && (view.filters.domain?.length ?? 0) > 0;
+
+  // One level up from a domain drill: drop the domain filter, keep every other filter. Escape does the same.
+  const goUp = () => {
+    const next = { ...view.filters };
+    delete next.domain;
+    update({ filters: next });
+  };
+  const goUpRef = useRef(goUp);
+  goUpRef.current = goUp;
+  useEffect(() => {
+    if (!drilled) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+      goUpRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drilled]);
+
   return (
     <div className="explorer">
       <p className="eyebrow">Technical explorer</p>
@@ -219,8 +264,20 @@ export function ExplorerPage() {
           </button>
         ))}
       </div>
+      {drilled && (
+        <nav aria-label="Drill-down path" className="crumbs">
+          <ol>
+            <li><Link to="/overview">Overview</Link></li>
+            <li>
+              <button type="button" onClick={goUp}>All security domains</button>
+            </li>
+            <li aria-current="page">{(view.filters.domain ?? []).map(domainLabel).join(", ")}</li>
+          </ol>
+          <button type="button" className="btn" onClick={goUp}>← All domains</button>
+        </nav>
+      )}
       {filterable && (
-        <FilterBar filters={view.filters} options={options.status === "ready" ? options.data : null} onChange={(filters) => update({ filters })} />
+        <FilterBar filters={view.filters} options={options.status === "ready" ? options.data : null} domains={domains} onChange={(filters) => update({ filters })} />
       )}
       {filterable && activeCount(view.filters) > 0 && <p className="grain">Filters apply to every number below and are kept in the URL, so this view can be shared as a link (the recipient still sees only what their own Azure RBAC access allows).</p>}
       <section id="explorer-panel" role="tabpanel" aria-labelledby={`tab-${view.tab}`} className="panel">
@@ -229,6 +286,8 @@ export function ExplorerPage() {
         {view.tab === "policies" && <PoliciesTab view={view} />}
         {view.tab === "initiatives" && <InitiativesTab view={view} update={update} />}
         {view.tab === "machines" && <MachinesTab />}
+        {view.tab === "needs-category" && <NeedsCategoryTab view={view} update={update} />}
+        {view.tab === "overrides" && <OverridesTab />}
       </section>
       <p><Link to="/technical">Open the machine baseline checks view</Link></p>
     </div>

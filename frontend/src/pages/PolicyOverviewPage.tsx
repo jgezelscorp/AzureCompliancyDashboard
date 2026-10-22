@@ -1,11 +1,15 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useDomainApi } from "../api/domainContext";
+import type { DomainOverview, Frameworks } from "../api/domainTypes";
 import { usePolicyApi } from "../api/policyContext";
-import type { Breakdown, BreakdownRow, PolicyOverview } from "../api/policyTypes";
+import type { Breakdown, BreakdownRow, Filters, PolicyOverview } from "../api/policyTypes";
 import { BarLegend, RankedBars, StackedBar, TrendChart } from "../components/charts";
 import { Empty, ErrorState, Loading } from "../components/common";
+import { ByDomainPanel, DomainQualityTile, FrameworksPanel } from "../components/DomainPanels";
 import { KpiTile } from "../components/KpiTile";
 import { useAsync, type AsyncState } from "../hooks/useAsync";
+import { confidenceLabel, downloadCsv, overviewDomainCsv } from "../lib/domainFormat";
 import { drillSearch, fmtPercent, formatWhen, rowDrill, shortType, toCsv } from "../lib/policyFormat";
 
 const DIMENSIONS: { id: string; label: string }[] = [
@@ -89,10 +93,10 @@ function BreakdownTable({ data, dim }: { data: Breakdown; dim: string }) {
   );
 }
 
-function BreakdownPanel() {
+function BreakdownPanel({ filters }: { filters: Filters }) {
   const api = usePolicyApi();
   const [dim, setDim] = useState("initiative");
-  const state = useAsync((s) => api.breakdown(dim, {}, { limit: 15 }, s), [dim]);
+  const state = useAsync((s) => api.breakdown(dim, filters, { limit: 15 }, s), [dim, JSON.stringify(filters)]);
   return (
     <Panel
       title="Compliance breakdown"
@@ -114,9 +118,9 @@ function BreakdownPanel() {
   );
 }
 
-function TopPoliciesPanel() {
+function TopPoliciesPanel({ filters }: { filters: Filters }) {
   const api = usePolicyApi();
-  const state = useAsync((s) => api.topPolicies({}, 10, s), []);
+  const state = useAsync((s) => api.topPolicies(filters, 10, s), [JSON.stringify(filters)]);
   return (
     <Panel title="Top 10 failing policies" what="top policies" state={state}>
       {(data) =>
@@ -132,7 +136,7 @@ function TopPoliciesPanel() {
                 label: (
                   <Link to={`/explorer${drillSearch({ tab: "states", params: { definition: [p.definition], state: ["NonCompliant"] } })}`}>{p.name}</Link>
                 ),
-                detail: `resources · ${p.category} · ${p.effect}${p.severity && p.severity !== "none" ? ` · severity ${p.severity}` : ""}`,
+                detail: `resources · ${p.category} · ${p.effect}${p.severity && p.severity !== "none" ? ` · severity ${p.severity}` : ""}${p.domain ? ` · domain ${p.domain} (${confidenceLabel(p.domainConfidence)})` : ""}`,
               }))}
             />
             <p className="grain">{data.grain}</p>
@@ -179,6 +183,13 @@ function TrendPanel() {
       {(t) => (
         <>
           <p className="grain">{t.note}</p>
+          {t.taxonomyChanged && (
+            <p role="status" className="state state-stale">
+              <span className="badge tone-warn"><span aria-hidden="true">▲</span> Taxonomy changed</span>{" "}
+              {t.taxonomyNote ?? "Domain breakdowns across samples with different taxonomy versions are not strictly comparable."}
+              {t.taxonomyVersions && t.taxonomyVersions.length > 0 ? ` Versions in this window: ${t.taxonomyVersions.join(", ")}.` : ""}
+            </p>
+          )}
           <TrendChart points={t.points} />
           <details>
             <summary>Show the numbers</summary>
@@ -315,7 +326,10 @@ function MachinesPanel() {
   );
 }
 
-export function exportOverviewCsv(o: PolicyOverview): string {
+export function exportOverviewCsv(
+  o: PolicyOverview,
+  domains?: { overview: DomainOverview | null; frameworks: Frameworks | null; selected: string[] },
+): string {
   const rows: unknown[][] = [
     ["Azure Policy estate overview (reporting aid, not a certification)"],
     ["Snapshot", o.snapshotAt ?? "unknown"],
@@ -330,21 +344,35 @@ export function exportOverviewCsv(o: PolicyOverview): string {
     [o.sampleNote],
     ...o.labels.map((l) => [l]),
   ];
+  if (domains?.overview) rows.push(...overviewDomainCsv(domains.overview, domains.frameworks, domains.selected));
   return toCsv(rows);
-}
-
-function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function PolicyOverviewPage() {
   const api = usePolicyApi();
-  const state = useAsync((s) => api.overview({}, s), []);
+  const domainApi = useDomainApi();
+  const [params, setParams] = useSearchParams();
+  const selected = params.getAll("domain").filter(Boolean);
+  const filters: Filters = selected.length ? { domain: selected } : {};
+  const key = JSON.stringify(filters);
+  const state = useAsync((s) => api.overview(filters, s), [key]);
+  const dom = useAsync((s) => domainApi.overview(filters, s), [key]);
+  const fw = useAsync((s) => domainApi.frameworks(filters, s), [key]);
+  const setDomains = (next: string[]) => {
+    const q = new URLSearchParams(params);
+    q.delete("domain");
+    for (const d of next) q.append("domain", d);
+    setParams(q);
+  };
+  const exportCsv = (o: PolicyOverview) =>
+    downloadCsv(
+      "policy-overview.csv",
+      exportOverviewCsv(o, {
+        overview: dom.status === "ready" ? dom.data : null,
+        frameworks: fw.status === "ready" ? fw.data : null,
+        selected,
+      }),
+    );
   return (
     <div className="overview">
       <div className="page-head">
@@ -354,18 +382,47 @@ export function PolicyOverviewPage() {
         </div>
         {state.status === "ready" && (
           <div className="page-actions no-print">
-            <button type="button" className="btn" onClick={() => download("policy-overview.csv", exportOverviewCsv(state.data))}>Export CSV</button>
+            <button type="button" className="btn" onClick={() => exportCsv(state.data)}>Export CSV</button>
             <button type="button" className="btn" onClick={() => window.print()}>Print / save as PDF</button>
           </div>
         )}
       </div>
+      {dom.status === "ready" && (
+        <form className="filter-bar no-print" role="search" aria-label="Domain filter" onSubmit={(e) => e.preventDefault()}>
+          <label>
+            Security domain
+            <select value="" onChange={(e) => e.target.value && !selected.includes(e.target.value) && setDomains([...selected, e.target.value])}>
+              <option value="">Add…</option>
+              {dom.data.domains.map((d) => <option key={d.domain} value={d.domain}>{d.label}</option>)}
+            </select>
+          </label>
+          {selected.length > 0 && (
+            <ul className="chips" aria-label="Active domain filters">
+              {selected.map((d) => (
+                <li key={d}>
+                  <button type="button" className="chip" aria-label={`Remove domain filter ${d}`} onClick={() => setDomains(selected.filter((x) => x !== d))}>domain: {d} ✕</button>
+                </li>
+              ))}
+              <li><button type="button" className="link-btn" onClick={() => setDomains([])}>Clear all</button></li>
+            </ul>
+          )}
+        </form>
+      )}
+      {selected.length > 0 && (
+        <p className="grain">Domain filter active: {selected.join(", ")}. Policy panels, the domain panels and the CSV export all use it.</p>
+      )}
       {state.status === "loading" && <Loading what="policy overview" />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
       {state.status === "ready" && <OverviewBody o={state.data} />}
       <TrendPanel />
-      <BreakdownPanel />
+      <ByDomainPanel state={dom} selected={selected} />
       <div className="grid-2">
-        <TopPoliciesPanel />
+        <FrameworksPanel state={fw} />
+        <DomainQualityTile state={dom} />
+      </div>
+      <BreakdownPanel filters={filters} />
+      <div className="grid-2">
+        <TopPoliciesPanel filters={filters} />
         <ExemptionsPanel />
       </div>
       <div className="grid-3">

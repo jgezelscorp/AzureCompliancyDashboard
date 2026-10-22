@@ -15,6 +15,8 @@ import { ErrorState, Loading } from "./components/common";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { PolicyApiProvider } from "./api/policyContext";
 import type { PolicyApi } from "./api/policyClient";
+import { DomainApiProvider } from "./api/domainContext";
+import type { DomainApi } from "./api/domainClient";
 import { CisoView } from "./pages/CisoView";
 import { PolicyOverviewPage } from "./pages/PolicyOverviewPage";
 import { ExplorerPage } from "./pages/ExplorerPage";
@@ -76,7 +78,7 @@ function Landing({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; policyApi?: PolicyApi; skipAuth?: boolean }) {
+export default function App({ api, policyApi, domainApi, skipAuth }: { api?: MetricsApi; policyApi?: PolicyApi; domainApi?: DomainApi; skipAuth?: boolean }) {
   const skip = skipAuth ?? (USE_MOCK_DATA || api !== undefined);
   const { state, login, logout } = useAuth(skip);
   const signedIn = state.kind === "signedIn";
@@ -89,6 +91,7 @@ export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; po
     body = (
       <MetricsApiProvider api={api}>
        <PolicyApiProvider api={policyApi}>
+        <DomainApiProvider api={domainApi}>
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<PolicyOverviewPage />} />
@@ -99,6 +102,7 @@ export default function App({ api, policyApi, skipAuth }: { api?: MetricsApi; po
           <Route path="/ciso" element={<CisoView />} />
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
+        </DomainApiProvider>
        </PolicyApiProvider>
       </MetricsApiProvider>
     );
