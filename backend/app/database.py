@@ -13,6 +13,15 @@ from app.config import Settings, get_settings
 
 @lru_cache
 def get_engine(database_url: str) -> Engine:
+    # A stopped or unreachable server must fail fast: unbounded TCP connects block the worker
+    # thread pool and starve unrelated endpoints (/auth/config, health probes, sign-in).
+    if database_url.startswith("postgresql"):
+        return create_engine(
+            database_url,
+            pool_pre_ping=True,
+            pool_timeout=5,
+            connect_args={"connect_timeout": 5},
+        )
     return create_engine(database_url, pool_pre_ping=True)
 
 

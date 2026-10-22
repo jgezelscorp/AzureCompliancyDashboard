@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app import __version__
 from app.api.domains import router as domains_router
@@ -35,8 +37,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Outermost: large JSON/CSV bodies (>64 KiB) were truncated on the Container Apps internal hop.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+    @app.exception_handler(OperationalError)
+    async def database_unavailable(_request: Request, _exc: OperationalError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database temporarily unavailable. Try again shortly."},
+        )
+
     @app.get("/healthz", response_model=HealthResponse, response_model_by_alias=True)
-    def healthz() -> HealthResponse:
+    async def healthz() -> HealthResponse:
         return HealthResponse(status="ok", version=__version__)
 
     @app.get("/readyz")
