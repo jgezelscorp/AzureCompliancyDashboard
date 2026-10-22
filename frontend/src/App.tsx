@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { MetricsApiProvider, USE_MOCK_DATA } from "./api/context";
 import type { MetricsApi } from "./api/client";
 import {
@@ -82,6 +83,7 @@ export default function App({ api, policyApi, domainApi, skipAuth }: { api?: Met
   const skip = skipAuth ?? (USE_MOCK_DATA || api !== undefined);
   const { state, login, logout } = useAuth(skip);
   const signedIn = state.kind === "signedIn";
+  const location = useLocation();
 
   let body: ReactNode;
   if (state.kind === "pending") body = <Loading what="sign-in" />;
@@ -153,7 +155,7 @@ export default function App({ api, policyApi, domainApi, skipAuth }: { api?: Met
         </div>
       </header>
       <main id="main" tabIndex={-1}>
-        {body}
+        <ErrorBoundary resetKey={location.pathname}>{body}</ErrorBoundary>
       </main>
     </>
   );

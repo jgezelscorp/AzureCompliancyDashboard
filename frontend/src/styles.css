@@ -197,6 +197,14 @@ nav a.active {
   font-weight: 600;
 }
 
+.error-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 6px;
+}
+
 .user-login {
   font-weight: 400;
   font-size: 0.85em;

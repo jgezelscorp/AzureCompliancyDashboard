@@ -1,8 +1,10 @@
 export type PolicyUnit = "percent" | "count";
 
 export interface Drill {
-  tab: string;
-  params: Record<string, string[] | string | number>;
+  /** The API also sends `{ page: "machines" }` (no tab/params) for the machine KPIs. */
+  tab?: string;
+  page?: string;
+  params?: Record<string, string[] | string | number>;
 }
 
 export interface Kpi {
