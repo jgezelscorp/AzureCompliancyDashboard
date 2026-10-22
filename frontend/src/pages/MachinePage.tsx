@@ -35,7 +35,7 @@ function FamilySection({ f }: { f: MachineFamilyDetail }) {
             <thead><tr><th scope="col">Report</th><th scope="col">Status</th><th scope="col">Ended</th><th scope="col" className="num">Checks</th></tr></thead>
             <tbody>
               {f.reports.map((r) => (
-                <tr key={r.reportId}><th scope="row">{r.reportId.slice(-12)}</th><td>{r.complianceStatus ?? "unknown"}</td><td>{formatWhen(r.endTime)}</td><td className="num">{r.checks}</td></tr>
+                <tr key={r.reportId}><th scope="row">{(r.reportId ?? "").slice(-12)}</th><td>{r.complianceStatus ?? "unknown"}</td><td>{formatWhen(r.endTime)}</td><td className="num">{r.checks}</td></tr>
               ))}
             </tbody>
           </table>

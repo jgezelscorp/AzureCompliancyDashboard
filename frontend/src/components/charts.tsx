@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import type { BreakdownRow, TrendPoint } from "../api/policyTypes";
 
-export function Sparkline({ values, label }: { values: number[]; label: string }) {
+export function Sparkline({ values: raw, label }: { values: number[]; label: string }) {
+  const values = (raw ?? []).filter((v) => typeof v === "number" && Number.isFinite(v));
   if (values.length < 2) {
     return <span className="spark-empty">{values.length} sample so far</span>;
   }

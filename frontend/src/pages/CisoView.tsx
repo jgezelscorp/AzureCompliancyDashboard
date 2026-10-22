@@ -55,8 +55,8 @@ export function CisoView() {
     <section aria-labelledby="ciso-h">
       <h2 id="ciso-h">CISO view</h2>
       <p className="detail">
-        Snapshot {formatTimestamp(latest.snapshotAt)} · {latest.scope.authorizedSubscriptions} of{" "}
-        {latest.scope.onboardedSubscriptions} onboarded subscription(s) visible to you
+        Snapshot {formatTimestamp(latest.snapshotAt)} · {latest.scope?.authorizedSubscriptions ?? "?"} of{" "}
+        {latest.scope?.onboardedSubscriptions ?? "?"} onboarded subscription(s) visible to you
       </p>
       {latest.dataStale && (
         <p role="alert" className="state state-stale">

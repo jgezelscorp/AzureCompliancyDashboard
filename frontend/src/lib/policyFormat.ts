@@ -2,7 +2,7 @@ import type { Drill, Filters, Kpi } from "../api/policyTypes";
 import { FILTER_KEYS } from "../api/policyTypes";
 
 export function fmtValue(k: Pick<Kpi, "value" | "unit">): string {
-  if (k.value === null) return "n/a";
+  if (k.value === null || k.value === undefined) return "n/a";
   return k.unit === "percent" ? `${k.value.toFixed(1)} %` : k.value.toLocaleString("en");
 }
 
@@ -19,7 +19,7 @@ export interface DeltaView {
 
 /** Direction is colour-independent: the sign and the word are always printed. */
 export function deltaView(k: Kpi): DeltaView {
-  if (k.delta === null || k.previous === null) {
+  if (k.delta == null || k.previous == null) {
     return { text: "no previous snapshot", tone: "none" };
   }
   if (k.delta === 0) return { text: "no change vs previous snapshot", tone: "same" };
@@ -33,7 +33,8 @@ export function deltaView(k: Kpi): DeltaView {
   };
 }
 
-export function shortType(t: string): string {
+export function shortType(t: string | null | undefined): string {
+  if (typeof t !== "string" || t === "") return "(unknown type)";
   const parts = t.split("/");
   return parts.length > 1 ? parts.slice(1).join("/") : t;
 }

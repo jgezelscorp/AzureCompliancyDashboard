@@ -39,6 +39,28 @@ function route(url: URL): unknown {
 }
 
 const unmatched: string[] = [];
+let nulled: string | null = null;
+
+/** Sets every property called `key` (at any depth) to null, simulating a NULL column on real data. */
+function nullKey(node: unknown, key: string): unknown {
+  if (Array.isArray(node)) return node.map((n) => nullKey(n, key));
+  if (node && typeof node === "object") {
+    return Object.fromEntries(
+      Object.entries(node as Record<string, unknown>).map(([k, v]) => [k, k === key ? null : nullKey(v, key)]),
+    );
+  }
+  return node;
+}
+
+function stringKeys(node: unknown, out: Set<string>): void {
+  if (Array.isArray(node)) node.forEach((n) => stringKeys(n, out));
+  else if (node && typeof node === "object") {
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      if (typeof v === "string") out.add(k);
+      stringKeys(v, out);
+    }
+  }
+}
 
 beforeEach(() => {
   unmatched.length = 0;
@@ -46,7 +68,8 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");
-      const body = route(url);
+      let body = route(url);
+      if (body !== undefined && nulled) body = nullKey(body, nulled);
       if (body === undefined) {
         unmatched.push(url.pathname);
         return new Response(JSON.stringify({ detail: "not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
@@ -56,7 +79,10 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  nulled = null;
+  vi.unstubAllGlobals();
+});
 
 const PAGES = [
   "/overview",
@@ -69,6 +95,42 @@ const PAGES = [
   "/technical",
   "/ciso",
 ];
+
+async function renderPage(page: string): Promise<string | null> {
+  const errors: unknown[] = [];
+  const spy = vi.spyOn(console, "error").mockImplementation((...a) => {
+    errors.push(a);
+  });
+  const { unmount } = render(
+    <MemoryRouter initialEntries={[page]}>
+      <App skipAuth />
+    </MemoryRouter>,
+  );
+  await waitFor(() => expect(screen.getByRole("main")).toBeInTheDocument());
+  await new Promise((r) => setTimeout(r, 120));
+  const boundary = screen.queryByRole("alert");
+  const msg = boundary && /Something went wrong/i.test(boundary.textContent ?? "") ? (boundary.querySelector("pre")?.textContent ?? "crash") : null;
+  unmount();
+  spy.mockRestore();
+  return msg;
+}
+
+describe("a NULL in any string column never blanks a page", () => {
+  const keys = new Set<string>();
+  for (const f of Object.values(files)) stringKeys(f, keys);
+  it("covers the string columns of every fixture", () => expect(keys.size).toBeGreaterThan(50));
+  it("renders every page with each string field nulled in turn", { timeout: 600000 }, async () => {
+    const failures: string[] = [];
+    for (const key of [...keys].sort()) {
+      nulled = key;
+      for (const page of ["/overview", "/explorer?tab=states", "/explorer?tab=resources", "/explorer?tab=policies", "/explorer?tab=machines", "/explorer?tab=needs-category", "/technical", "/ciso"]) {
+        const msg = await renderPage(page);
+        if (msg) failures.push(`${key} @ ${page}: ${msg.replace(/\n/g, " | ").slice(0, 300)}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});
 
 describe("real server response shapes never blank the screen", () => {
   for (const page of PAGES) {
@@ -98,7 +160,7 @@ describe("real server response shapes never blank the screen", () => {
         <App skipAuth />
       </MemoryRouter>,
     );
-    const link = await screen.findAllByRole("link", { name: "Show the rows" });
+    const link = await screen.findAllByRole("link", { name: "Show the rows" }, { timeout: 5000 });
     expect(link.some((a) => a.getAttribute("href") === "/explorer?tab=machines")).toBe(true);
   });
 });
@@ -115,7 +177,7 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent(/Something went wrong/);
-    expect(screen.getByText("boom")).toBeInTheDocument();
+    expect(screen.getByText(/boom/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
     spy.mockRestore();

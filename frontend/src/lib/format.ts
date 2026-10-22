@@ -86,6 +86,12 @@ export function formatTimestamp(iso: string | null): string {
     : d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
 }
 
-export function shortId(id: string): string {
+/** Locale-formatted integer that tolerates a missing count. */
+export function fmtInt(n: number | null | undefined): string {
+  return typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("en") : "—";
+}
+
+export function shortId(id: string | null | undefined): string {
+  if (!id) return "—";
   return id.length > 13 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
 }

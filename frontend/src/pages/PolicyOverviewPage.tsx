@@ -274,7 +274,7 @@ function QualityPanel() {
             {q.limits.map((l) => <li key={l}>{l}</li>)}
           </ul>
           {q.inventory.withoutEvaluationsTopTypes.length > 0 && (
-            <p className="grain">Most common unevaluated types: {q.inventory.withoutEvaluationsTopTypes.map((t) => `${shortType(t.type)} (${t.count})`).join(", ")}.</p>
+            <p className="grain">Most common unevaluated types: {(q.inventory?.withoutEvaluationsTopTypes ?? []).map((t) => `${shortType(t.type)} (${t.count})`).join(", ")}.</p>
           )}
         </>
       )}
@@ -333,7 +333,7 @@ export function exportOverviewCsv(
   const rows: unknown[][] = [
     ["Azure Policy estate overview (reporting aid, not a certification)"],
     ["Snapshot", o.snapshotAt ?? "unknown"],
-    ["Scope", `${o.scope.authorizedSubscriptions} authorized of ${o.scope.onboardedSubscriptions} onboarded subscriptions${o.scope.partial ? " (partial)" : ""}`],
+    ["Scope", `${o.scope?.authorizedSubscriptions ?? "?"} authorized of ${o.scope?.onboardedSubscriptions ?? "?"} onboarded subscriptions${o.scope?.partial ? " (partial)" : ""}`],
     [],
     ["KPI", "Value", "Unit", "Numerator", "Denominator", "Grain", "Delta vs previous", "Formula"],
     ...o.kpis.map((k) => [k.label, k.value ?? "n/a", k.unit, k.numerator ?? "", k.denominator ?? "", k.grain, k.delta ?? "", k.formula]),
@@ -440,8 +440,8 @@ function OverviewBody({ o }: { o: PolicyOverview }) {
   return (
     <>
       <p className="scope-line">
-        Snapshot {formatWhen(o.snapshotAt)} · {o.scope.authorizedSubscriptions} of {o.scope.onboardedSubscriptions} onboarded subscriptions visible
-        {o.scope.partial ? " (partial: some scopes are hidden by your Azure RBAC access)" : ""} · {o.sampleNote}
+        Snapshot {formatWhen(o.snapshotAt)} ·         {o.scope?.authorizedSubscriptions ?? "?"} of {o.scope?.onboardedSubscriptions ?? "?"} onboarded subscriptions visible
+                {o.scope?.partial ?  " (partial: some scopes are hidden by your Azure RBAC access)" : ""} · {o.sampleNote}
       </p>
       {o.snapshotAt === null && <Empty>No policy data has been collected for your scope yet. Nothing is shown as compliant.</Empty>}
       <section className="panel" aria-label="Executive summary">

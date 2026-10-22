@@ -156,7 +156,7 @@ export function TechnicalView() {
       <section aria-labelledby="tech-h">
         <h2 id="tech-h">Technical view</h2>
         <Empty>
-          {latest.scope.onboardedSubscriptions === 0
+          {latest.scope?.onboardedSubscriptions === 0
             ? "No subscription is onboarded yet. Ask an administrator to register a scope."
             : "No collection has completed yet, so there is no evidence to show. No data is not compliance."}
         </Empty>
@@ -182,7 +182,7 @@ export function TechnicalView() {
       <h2 id="tech-h">Technical view</h2>
       <p className="detail">
         Snapshot {formatTimestamp(latest.snapshotAt)}
-        {latest.scope.partial &&
+        {latest.scope?.partial &&
           " · You can see only some onboarded scopes; figures cover those only."}
       </p>
       {latest.dataStale && (
